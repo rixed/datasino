@@ -1,0 +1,963 @@
+// vim:filetype=asciidoc expandtab spell spelllang=en ts=2 sw=2
+= Datasino: Random Data Generator of arbitrary type
+rixed@happyleptic.org
+v0.1, 2021-02-05
+:toc:
+:numbered:
+:icons:
+:lang: en
+:encoding: utf-8
+
+== Overview
+
+Datasino is a simple tool. Given a data type, a flow rate, an encoding and a
+target sink, it generates random values of that type, at that rate, and send
+them it encoded as instructed to that sink.
+
+All those required inputs will be read from the command line with
+https://erratique.ch/software/cmdliner[cmdliner].
+For data type specifications and generator the
+https://github.com/rixed/dessser[dessser] library will be used.
+
+== Notation and glossary
+
+First let's open a few modules and shorten some common ones:
+
+.external modules
+[source,ml]
+----
+open Batteries
+open Cmdliner
+
+module DE = DessserExpressions
+module DH = DessserOCamlBackEndHelpers
+module DL = DessserStdLib
+module DM = DessserMasks
+module DT = DessserTypes
+module DU = DessserCompilationUnit
+----
+
+Also, many names will be shortened when they appear in variable names that
+are used frequently.
+
+.Table Glossary
+|===
+|shorthand|for
+
+|+t+|type
+|+thing_t+|the type of +thing+
+|+mn+|maybe nullable
+|===
+
+== Inputs from the command line
+
+Let's start by defining all the required command line arguments, the first of
+which being the data type, or +schema+.
+
+=== Schema
+
+For convenience let's accept data type specification both in dessser internal
+format or ClickHouse somewhat informal "NamesAndTypes" format. The dessser
+library has parser for both formats, and a parser that can understand any of them.
+
+And let's accept either inline values or values stored in a file, using the
+'@' character as an indication that the command line value is actually a
+file name, as curl does.
+
+By connecting cmdliner parser and pretty-printer with dessser ones, we can
+obtain directly dessser representations of data types from cmdliner.
+
+Note that dessser uses a hierarchy of types: value-types are all types that can
+be serialized, then on top of those maybe-nullable are value-types that can or
+cannot be null, and then types in general are those maybe-nullable types and
+some additional types aimed at writing low level code required to implement
+serializers. We are only interested by maybe-nullable types for the schema.
+
+.command line arguments
+[source,ml]
+----
+let mn_t =
+  let parse s =
+    let s =
+      if String.length s > 0 && s.[0] = '@' then
+        DessserTools.read_whole_file (String.lchop s)
+      else
+        s in
+    match DT.Parser.of_string ~any_format:true s with
+    | exception e ->
+        Pervasives.Error (`Msg (Printexc.to_string e))
+    | DT.Value mn ->
+        Pervasives.Ok mn
+    | _ ->
+        Pervasives.Error (`Msg "Outer type must be a value type.")
+  and print fmt mn =
+    Format.fprintf fmt "%s" (DT.string_of_maybe_nullable mn)
+  in
+  Arg.conv ~docv:"TYPE" (parse, print)
+
+let schema =
+  let env = Term.env_info "SCHEMA" in
+  let doc = "The type of the data to be generated (inline or @file)." in
+  let i = Arg.info ~doc ~env ~docv:"TYPE" [ "s" ; "schema" ] in
+  Arg.(required (opt (some mn_t) None i))
+----
+
+=== Rate limit
+
+Optionally we might want to control the speed at which data is generated
+(by default datasino will just go at full speed).
+
+To limit the speed is easy, and a single +rate_limit+ will do (using negative
+or zero values to mean "no limit").
+
+.command line arguments
+[source,ml]
+----
+let rate_limit =
+  let env = Term.env_info "RATE_LIMIT" in
+  let doc = "Maximum number of generated values per seconds." in
+  let i = Arg.info ~doc ~env [ "rate-limit" ] in
+  Arg.(value (opt float 0. i))
+----
+
+It is then easy enough for datasino to pause in between messages to meet this
+restriction.
+
+But making data generation faster is less trivial, as randomly generating
+data takes some time. But we could easily reuse previously generated values
+and send them several times in a row, to artificially scale up the flow rate
+a bit like bad cameras scales up image resolution by interpolating pixels,
+except datasino will not even bother interpolating.
+
+.command line arguments
+[source,ml]
+----
+let stutter = (* TODO *)
+  let env = Term.env_info "STUTTER" in
+  let doc = "Reuse each generated value that many time." in
+  let i = Arg.info ~doc ~env [ "stutter" ] in
+  Arg.(value (opt float 0. i))
+----
+
+Using again a floating value here gives more control on the actual data rate.
+
+=== Encoding
+
+Dessser generates values as normal heap allocated values and can then
+serialize those onto various possible encoding, which must then be chosen
+next.
+
+.command line arguments
+[source,ml]
+----
+let encoding =
+  let encodings =
+    [ "null", Null ; (* <1> *)
+      "ringbuf", RingBuff ;
+      "row-binary", RowBinary ;
+      "s-expression", SExpr ;
+      "csv", CSV ] in
+  let env = Term.env_info "ENCODING" in
+  let doc = "Encoding format for output." in
+  let docv = docv_of_enum encodings in
+  let i = Arg.info ~doc ~docv ~env [ "e" ; "encoding" ] in
+  Arg.(value (opt (enum encodings) SExpr i))
+----
+<1> The Null encoding could be useful to measure the speed of generating
+    values without serializing or sending.
+
+given:
+
+.helper functions
+[source,ml]
+----
+type encodings = Null (* <1> *) | RowBinary | SExpr | RingBuff | CSV
+----
+
+and:
+
+.helper functions
+[source,ml]
+----
+let docv_of_enum l =
+  IO.to_string (
+    List.print ~first:"" ~last:"" ~sep:"|" (fun oc (n, _) ->
+      String.print oc n)
+  ) l
+----
+
+=== Target
+
+Finally, the target, or sink, that can be either a file name (or name template),
+a Kafka broker or the special +discard+ command that could also be useful for
+benchmarking.
+
+.command line arguments
+[source,ml]
+----
+let output_file =
+  let doc = "File name where to append the generated values." in
+  let i = Arg.info ~doc [ "o" ; "output-file" ] in
+  Arg.(value (opt string "" i))
+
+let discard =
+  let doc = "Discard generated values." in
+  let i = Arg.info ~doc [ "discard" ] in
+  Arg.(value (flag i))
+
+let kafka_brokers =
+  let env = Term.env_info "KAFKA_BROKERS" in
+  let doc = "Initial Kafka brokers." in
+  let i = Arg.info ~doc ~env [ "kafka-brokers" ] in
+  Arg.(value (opt string "" i))
+
+let kafka_topic =
+  let env = Term.env_info "KAFKA_TOPIC" in
+  let i = Arg.info ~doc:"Kafka topic to publish to."
+                   ~env [ "kafka-topic" ] in
+  Arg.(value (opt string "" i))
+
+let kafka_timeout =
+  let env = Term.env_info "KAFKA_TIMEOUT" in
+  let i = Arg.info ~doc:"Timeout when sending a Kafka message."
+                   ~env [ "kafka-timeout" ] in
+  Arg.(value (opt float 0. i))
+
+let kafka_partition =
+  let env = Term.env_info "KAFKA_PARTITION" in
+  let i = Arg.info ~doc:"Kafka partition where to send messages to."
+                   ~env [ "partition" ] in
+  Arg.(value (opt int 0 i))
+----
+
+Instead of appending every values into a single file it is sometime useful to
+have a new file created every now and then. The same options would control how
+many values to write per Kafka message.
+
+.command line arguments
+[source,ml]
+----
+let max_size =
+  let doc = "Rotate the current output file/kafka message after that size \
+             (in bytes)" in
+  let i = Arg.info ~doc [ "max-size" ] in
+  Arg.(value (opt int 0 (* <1> *) i))
+
+let max_count =
+  let doc = "Rotate the current output file/kafka message after that number \
+             of values" in
+  let i = Arg.info ~doc [ "max-count" ] in
+  Arg.(value (opt int 0 (* <1> *) i))
+----
+<1> 0 can be used to mean "no limit".
+
+When values are sent to kafka, no limit actually means to write only one
+value per message, whereas when writing to file it means to write all
+values into the file.
+
+Since a single instance of datasino can have only one target, some of those
+options are mutually exclusive. A simple check function can verify that one
+and only one target is configured:
+
+.command line check
+[source,ml]
+----
+let check_command_line
+      output_file discard kafka_brokers kafka_topic kafka_partition kafka_timeout =
+  let use_file = output_file <> "" in
+  let use_kafka =
+    kafka_brokers <> "" || kafka_topic <> "" || kafka_partition <> 0 ||
+    kafka_timeout <> 0. in
+  if use_file && discard ||
+     use_file && use_kafka ||
+     use_kafka && discard then
+    raise (Failure "More than one target is configured") ;
+  if not (use_file || use_kafka || discard) then
+    raise (Failure "No target configured")
+----
+
+== Main function
+
+This is all the command line arguments that are needed.
+After displaying the version of the program (always useful when all we have are
+the logs), cmdliner can parse them all and call the +start+ function:
+
+.main function
+[source,ml]
+----
+let () =
+  Printf.printf "Datasino v%s\n%!" version ;
+  let start_cmd =
+    let doc = "Datasino - random data generator" in
+    Term.(
+      (const start
+        $ schema
+        $ rate_limit
+        $ stutter
+        $ encoding
+        $ output_file
+        $ discard
+        $ kafka_brokers
+        $ kafka_topic
+        $ kafka_partition
+        $ kafka_timeout
+        $ max_size
+        $ max_count
+        (* ...extra command line arguments... *)),
+      info "datasino" ~version ~doc)
+  in
+  Term.eval start_cmd |> Term.exit
+----
+
+The first thing this +start+ function should do is to call the +check_command_line+
+function:
+
+.start function
+[source,ml]
+----
+let start
+      schema rate_limit stutter encoding output_file discard
+      kafka_brokers kafka_topic kafka_partition kafka_timeout
+      max_size max_count (* ...extra command line parameters... *) =
+  check_command_line
+    output_file discard
+    kafka_brokers kafka_topic kafka_partition kafka_timeout ;
+----
+
+For simplicity datasino is going to append values in a single buffer once,
+when large enough, will be handed over to some output function. The main
+loop will therefore look like:
+
+.main loop, take 1
+[source,ml]
+----
+let main_loop random_value serialize is_full output rate_limit buffer =
+  let rec loop buffer =
+    let v = random_value () in
+    let buffer = serialize buffer v in
+    let buffer =
+      if is_full buffer then output buffer
+      else buffer in
+    rate_limit () ;
+    loop buffer in
+  loop buffer
+----
+
+With a functional style persistent +buffer+ which will be a
++DH.Pointer.t+, the type used by dessser derializers.
+
+The +start+ function must thus prepare five functions:
+1. one that generate random values of the requested type (+random_value+);
+2. one that, given a buffer and a generated value, encodes this value in the requested format (+serialize+);
+3. one that tells if the buffer is ready to be sent (+is_full+);
+4. one that sends the buffer to the desired target (+output+).
+4. and finally, one that wait some time to meet the rate limit (+rate_limit+).
+
+The issue on the above code is the variable +v+: it's type is +schema+, which is known only at runtime.
+That's why both +random_value+ and +serialize+ have to be generated at runtime.
+To make things simpler, we will therefore also generate a function that directly generate and serialize a random value, so that datasino
+program itself can be compiled without knowing the type of +v+. This amount to changing the above main loop into:
+
+.main loop
+[source,ml]
+----
+let main_loop serialize_random_value is_full output rate_limit buffer =
+  let rec loop buffer =
+    let buffer = serialize_random_value buffer in
+    let buffer =
+      if is_full buffer then output buffer
+      else buffer in
+    rate_limit () ;
+    loop buffer in
+  loop buffer
+----
+
+=== The value generator
+
+The dessser library offers a value generator already. More exactly, it has a
+function that returns the code of a function returning a random value of any
+type. That's because dessser is a meta-programming tool: it generates code
+that's tailored to specific data type. So despite the fact datasino works on
+any data type (ie. the schema is known only at runtime), the code that will
+manipulate data will be as efficient as if the data type was known at compile
+type. To achieve this, datasino will generate some code and then compile it
+and dynamically load it.
+
+And since we will have several such functions we want to generate at run time,
+we will build a single compilation unit with all of them so there is only one
+external compilation of library to dynamically load.
+
+First, a compilation unit is created:
+
+.start function
+[source,ml]
+----
+  let compunit = DU.make () in
+----
+
+to which we can add identifiers and their definition:
+
+.start function
+[source,ml]
+----
+  let compunit, _, _ (* <1> *) =
+    DE.func0 (fun _l -> DL.random schema) |>
+    DU.add_identifier_of_expression compunit ~name:"random_value" in
+----
+<1> +add_identifier_of_expression+ returns not only the new compilation unit
+    but also the identifier (as a dessser expression) for the added expression,
+    and the name for this identifier. We will not use the identifier because
+    we are not going to call this function from another piece of generated
+    code, and the name we have chosen outself as "random_value".
+
+We will get back to this function and how datasino can actually call it when
+we compile and load that compilation unit.
+
+=== The Serializer
+
+The next step is to build the serializer. Again, the serializer will be
+tailored to the specific schema and encoding, so that's another function for the
+compilation unit +compunit+.
+
+First a functor is applied to generate a serializer from any value into the
+specified encoding:
+
+.start function
+[source,ml]
+----
+  let module Ser = (val serializer_of_encoding encoding : Dessser.SER) in
+  let module Serializer = DessserHeapValue.Serialize (Ser) in
+----
+
+with +serializer_of_encoding+:
+
+.helper functions
+[source,ml]
+----
+let serializer_of_encoding = function
+  | Null -> (module DessserDevNull.Ser : Dessser.SER)
+  | RingBuff -> (module DessserRamenRingBuffer.Ser : Dessser.SER)
+  | RowBinary -> (module DessserRowBinary.Ser : Dessser.SER)
+  | SExpr -> (module DessserSExpr.Ser : Dessser.SER)
+  | CSV -> (module DessserCsv.Ser : Dessser.SER)
+----
+
+The result module has a function +serialize+ which returns the code to
+serialize any value of a given type. It's signature is almost what is needed:
+
+.serialize signature
+[NOTE]
+[source,ml]
+----
+val serialize : ?config:Ser.config (* <1> *) ->
+                T.maybe_nullable (* <2> *) ->
+                DE.t (* <3> <4> *) ->  (* The field mask *)
+                DE.t (* <3> *) ->  (* The value *)
+                DE.t (* <3> *) ->  (* The "pointer" where to serialize into *)
+                DE.t (* <3> *)     (* The "pointer" after the serialized value *)
+----
+<1> Some serializers behavior can be configured. For now let's assume the
+    default configuration is good enough.
+
+<2> This is the type of the values that need to be serialized, ie. +schema+.
+
+<3> Values of type +DE.t+ are expressions. This is a real annoyance that all
+    dessser's expressions appear to OCaml only as "expression" without their
+    actual type. As a result, dessser does its own type checking at runtime
+    and as a simple type system. A milder annoyance is that expression types
+    have to be indicated in comments, as here.
+
+<4> The field mask is a mask instructing (at runtime) which fields need to be
+    serialized. Here we want to always serialize the whole value, so we will
+    just use +DM.Copy+ (or rather its runtime expression
+    +DE.Ops.copy_field+).
+
+What dessser calls "pointer" is merely a byte buffer under the hood (for
+OCaml backend at least).
+
+.start function
+[source,ml]
+----
+  let compunit, _, _ =
+    DE.func2 DT.(Value schema) DT.DataPtr (fun _l v dst ->
+      Serializer.serialize schema DE.Ops.copy_field v dst) |>
+    DU.add_identifier_of_expression compunit ~name:"serialize" in
+----
+
+=== Generating +serialize_random_value+
+
+Remember we said we want to manipulate from datasino only the combination of
+serialize applied to a random_value, so that the actual type of the value does
+not bubble up in compile time.
+
+This is easy enough to generate this +serialize_random_value+ function from the two above:
+
+.start function
+[source,ml]
+----
+  let compunit, _, _ =
+    DE.func1 DT.DataPtr (fun _l dst ->
+      let open DE.Ops in
+      let v (* <1> *) = apply (identifier "random_value") [] in
+      apply (identifier "serialize") [ v ; dst ]) |>
+    DU.add_identifier_of_expression compunit ~name:"serialize_random_value" in
+----
+
+Notice that in <1> the type of v is a compile time dessser expression, not a
+value of the runtime type +schema+, so we are in the clear.
+
+We will see later, when it comes to runtime compilation, how datasino will get
+a handle on that function.
+
+=== Knowing when to send
+
+The +is_full+ function in the main loop does not depend on the specifics of the
+specified data type and therefore need not be specialized at runtime. It can
+be easily and efficiently implemented from the command line parameters alone:
+
+.start function
+[source,ml]
+----
+  let is_full =
+    if max_count > 0 then
+      let count = ref 0 in
+      fun _buffer ->
+        count := (!count + 1) mod max_count ;
+        !count = 0
+    else if max_size > 0 then
+      fun buffer ->
+        DH.Pointer.offset buffer >= max_size
+    else
+      fun _buffer ->
+        true in
+----
+
+Notice than when there is no limit, the message is full after every value.
+
+=== The output function
+
+The +output+ function, which operates on a mere byte buffer, can be likewise
+derived from the command line parameters alone.
+As each output technique is a bit verbose let's split them in distinct functions:
+
+.start function
+[source,ml]
+----
+let output =
+  if output_file <> "" then
+    output_to_file output_file max_count max_size
+  else if discard then
+    ignore
+  else
+    output_to_kafka kafka_brokers kafka_topic kafka_timeout kafka_partition
+                    max_size
+  in
+----
+
+With the specific function to output into a file defined a bit earlier as:
+
+.output functions
+[source,ml]
+----
+let output_to_file output_file max_count max_size =
+  let single_file = max_count = 0 && max_size = 0 in
+  let fd = ref None in
+  let file_seq = ref ~-1 in (* to name multiple output files *)
+  fun buffer ->
+    if !fd = None then (
+      let file_name =
+        if single_file then output_file
+        else (
+          incr file_seq ;
+          output_file ^"."^ string_of_int !file_seq) in
+      fd := Some (open_file file_name)) ;
+    write_buffer (Option.get !fd) buffer ;
+    if not single_file then (
+      rotate_file (Option.get !fd) ;
+      fd := None)
+----
+
++open_file+ and +rotate_file+ will take care of creating the files
+according to the configuration, and will be defined later on.
+
+As for kafka, we merely rely on the bindings to rdkafka client library:
+
+.output functions
+[source,ml]
+----
+let output_to_kafka brokers topic timeout partition max_size =
+  let open Kafka in
+  Printf.printf "Connecting to Kafka at %s\n%!" brokers ;
+  let delivery_callback msg_id = function
+    | None -> (* No error *) ()
+    | Some err_code ->
+        Printf.eprintf "delivery_callback: msg_id=%d, Error: %s\n%!"
+          msg_id (kafka_err_string err_code) in
+  let handler =
+    new_producer ~delivery_callback [
+      "metadata.broker.list", brokers ;
+      "message.max.bytes", string_of_int (max_size + 10_000) (* <1> *) ] in
+  let producer =
+    Kafka.new_topic handler topic [
+      "message.timeout.ms",
+        string_of_int (int_of_float (timeout *. 1000.)) ;
+    ] in
+  let msg_id = ref 0 in
+  fun buffer ->
+    let bytes = DH.Pointer.contents buffer in
+    let str = Bytes.unsafe_to_string bytes in (* producer will not keep a ref on this *)
+    Kafka.produce producer ~msg_id:!msg_id partition str ;
+    incr msg_id ;
+    Kafka.wait_delivery handler (* <2> *)
+    (* TODO: on exit, release all producers *)
+----
+In <1> the maximum message size is set to a bit more than the +max_size+
+specified, as this maximum size is just an indicator of when to send the
+message not a hard limit.
+
+Notice in <2> that this wait could be done only occasionally with little
+gain.
+
+We now have all the possible output functions but all is not quite done yet, as
+the +output+ function was supposed to return the emptied buffer:
+
+.start function
+[source,ml]
+----
+let output buffer =
+  output buffer ;
+  DH.Pointer.reset buffer in
+----
+
+=== The rate limiter
+
+One simple yet accurate way to limit the rate to a given number of values per
+second is to sleep long enough from time to time (say, every 10 values) to make
+sure the actual rate do not exceed the limitation. We could sleep in between
+any two messages but for any then the inaccuracy of the sleep duration would
+become of the same order of magnitude than the rate limit itself for rates that
+are high enough.
+
+Let's merely sleep once every N messages when N is the rate limit itself, ie
+sleep about once a second.
+
+.start function
+[source,ml]
+----
+  let rate_limit =
+    if rate_limit <= 0. then
+      ignore
+    else
+      let sleep_every = int_of_float (ceil rate_limit) in
+      let period = float_of_int sleep_every /. rate_limit in
+      let start = ref (Unix.gettimeofday ()) in
+      let count = ref 0 in
+      fun () ->
+        incr count ;
+        if !count = sleep_every then (
+          count := 0 ;
+          let now = Unix.gettimeofday () in
+          let dt = now -. !start in
+          if dt >= period then (
+            (* We are late *)
+            start := now
+          ) else (
+            Unix.sleepf (period -. dt) ;
+            start := Unix.gettimeofday ()
+          )
+        ) in
+----
+
+All the required functions have been defined, but two of them still
+have to be actually compiled and dynamically loaded. Let's go down
+to this now.
+
+=== Runtime code generation
+
+The dessser library has a function that compiles and load dynamically
+a compilation unit like +compunit+. The difficulty is that the compilation
+unit has to call datasino and register that +serialize_random_value+ we are
+interested in, because OCaml dynamic linker offers no way to reach its symbols
+the other way around (for type safety).
+
+Therefore the two endpoints of this registration process has to be added.
+
+Inside datasino, a simple reference to the function waiting to be changed to
+the actual runtime functions by the dynamically loaded code:
+
+.registering callback
+[source,ml]
+----
+let gen_serialize_random_value : (DH.Pointer.t -> DH.Pointer.t) ref =
+  ref (fun _buffer -> assert false)
+----
+
+And so we need to add in the +compunit+ some code to change this reference.
+Hopefully, dessser allow to add arbitrary code to a compilation unit, which is
+a bit like the +asm+ directive of meta-programming:
+
+.start function
+[source,ml]
+----
+  let compunit =
+    DU.add_verbatim_definition compunit ~name:"registration"
+                               ~dependencies:["serialize_random_value"]
+                               ~backend:DessserBackEndOCaml.id
+                               (fun oc _printer ->
+      String.print oc
+        "let registration = \
+           Datasino_main.gen_serialize_random_value := serialize_random_value\n") in
+----
+
+The dessser library has a function called +compile_and_load+ that compiles a
+compilation unit as a shared object and dynamically load the result. It also
+takes as a parameter a set of search path so that the generated module can find
+the headers and libraries it needs. In our case, it needs to find datasino
+libraries, which could be given by a new command line argument:
+
+.command line arguments
+[source,ml]
+----
+let extra_search_paths =
+  let env = Term.env_info "EXTRA_SEARCH_PATHS" in
+  let doc = "Where to find datasino libraries." in
+  let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
+  Arg.(value (opt_all string [] i))
+----
+
+.extra command line arguments
+[source,ml]
+----
+$ extra_search_paths
+----
+
+.extra command line parameters
+[source,ml]
+----
+extra_search_paths
+----
+
+So if all goes well, calling +compile_and_load+ now will result in the
+compilation unit to be compiled and loaded, at what tine the initialization of
+the +registration+ top level variable will set the value of datasino reference
++gen_serialize_random_value+ to the actual value from within the freshly
+compiled compilation unit, so that by the time the +compile_and_load+ function
+return the actual function will be ready for duty.
+
+.start function
+[source,ml]
+----
+  let backend_mod = (module DessserBackEndOCaml : Dessser.BACKEND) in
+  DessserDSTools.compile_and_load ~extra_search_paths backend_mod compunit ;
+  let serialize_random_value = !gen_serialize_random_value in
+----
+
+Et voilà! Rarely can so many things go wrong in so few lines.
+
+=== Calling the main loop
+
+Now that all the required functions are available, the main loop can
+be called:
+
+.start function
+[source,ml]
+----
+  let buffer = DH.Pointer.of_buffer (max_size + 100_000) in (* <1> *)
+  main_loop serialize_random_value is_full output rate_limit buffer
+----
+
+Notice that in <1> the allocated buffer is taken to be just 100kb
+above the defined +max_size+ (which could be 0). This assumes that
+no single value will ever be larger than 100kb.
+
+A later, more sophisticated version of the dessser library might
+offer a resizeable +Pointer+ to address this issue.
+
+== Filling in the boring details
+
+A few non trivial functions have been left aside but need to be filled in in
+order for datasino to compile.
+
+=== File functions
+
++open_file+ takes a file name and return a unix file descriptor. When writing
+into a file we want the file to be created if it does not exist and append
+otherwise. So the simplest version could be:
+
+.simple open_file
+[source,ml]
+----
+let open_file name =
+  Unix.(openfile name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640)
+----
+
+Although this serves the use case when we want to append data in an existing
+file (such as a fifo or a character device) it may not be practical when
+producing actual files. Then, it's usually preferable to have files appear
+only once complete, atomically. It is therefore preferable, when the file does
+not exist already, to create a temporary file first and then rename it.
+
+So instead of a mere file descriptor we will make the type for opened files a
+bit more sophisticated:
+
+.file functions
+[source,ml]
+----
+type opened_file =
+  { fd : Unix.file_descr ;
+    name : string ;
+    opened_name : string }
+----
+
+Where +opened_name+ being different than +name+ will inform the close function that the file
+should be renamed.
++open_file+ could then be defined as:
+
+.file functions
+[source,ml]
+----
+let open_file name =
+  let open Unix in
+  let opened_name =
+    if file_exists name then name else tmp_name name in
+  { fd = openfile opened_name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640 ;
+    name ; opened_name }
+----
+
+With:
+
+.helper functions
+[source,ml]
+----
+let file_exists name =
+  let open Unix in
+  try
+    ignore (stat name) ;
+    true
+  with Unix_error (ENOENT, _, _) ->
+    false
+
+let tmp_name name =
+  let rec retry n =
+    let ext =
+      if n = 1 then ".tmp" else ".tmp."^ string_of_int n in
+    let tmp_name = name ^ ext in
+    if file_exists tmp_name then retry (n + 1) else tmp_name in
+  retry 1
+----
+
++write_buffer+ is given a file descriptor and a "pointer" (+DH.Pointer.t+) and
+its sole job is to write its content into that file:
+
+.file functions
+[source,ml]
+----
+let write_buffer file buffer =
+  let bytes = DH.Pointer.contents buffer in
+  let len = Bytes.length bytes in
+  let len' = Unix.write file.fd bytes 0 len in
+  assert (len = len')
+----
+
++rotate_file+ should close the current file, and maybe rename it.
+
+.file functions
+[source,ml]
+----
+let rotate_file file =
+  let open Unix in
+  Unix.close file.fd ;
+  if file.opened_name <> file.name then
+    Unix.rename file.opened_name file.name
+----
+
+=== Kafka functions
+
+The last gap we need to fill is a few helper functions related to Kafka:
+
+.kafka functions
+[source,ml]
+----
+let kafka_err_string =
+  let open Kafka in
+  function
+  | BAD_MSG -> "BAD_MSG"
+  | BAD_COMPRESSION -> "BAD_COMPRESSION"
+  | DESTROY -> "DESTROY"
+  | FAIL -> "FAIL"
+  | TRANSPORT -> "TRANSPORT"
+  | CRIT_SYS_RESOURCE -> "CRIT_SYS_RESOURCE"
+  | RESOLVE -> "RESOLVE"
+  | MSG_TIMED_OUT -> "MSG_TIMED_OUT"
+  | UNKNOWN_PARTITION -> "UNKNOWN_PARTITION"
+  | FS -> "FS"
+  | UNKNOWN_TOPIC -> "UNKNOWN_TOPIC"
+  | ALL_BROKERS_DOWN -> "ALL_BROKERS_DOWN"
+  | INVALID_ARG -> "INVALID_ARG"
+  | TIMED_OUT -> "TIMED_OUT"
+  | QUEUE_FULL -> "QUEUE_FULL"
+  | ISR_INSUFF -> "ISR_INSUFF"
+  | UNKNOWN -> "UNKNOWN"
+  | OFFSET_OUT_OF_RANGE -> "OFFSET_OUT_OF_RANGE"
+  | INVALID_MSG -> "INVALID_MSG"
+  | UNKNOWN_TOPIC_OR_PART -> "UNKNOWN_TOPIC_OR_PART"
+  | INVALID_MSG_SIZE -> "INVALID_MSG_SIZE"
+  | LEADER_NOT_AVAILABLE -> "LEADER_NOT_AVAILABLE"
+  | NOT_LEADER_FOR_PARTITION -> "NOT_LEADER_FOR_PARTITION"
+  | REQUEST_TIMED_OUT -> "REQUEST_TIMED_OUT"
+  | BROKER_NOT_AVAILABLE -> "BROKER_NOT_AVAILABLE"
+  | REPLICA_NOT_AVAILABLE -> "REPLICA_NOT_AVAILABLE"
+  | MSG_SIZE_TOO_LARGE -> "MSG_SIZE_TOO_LARGE"
+  | STALE_CTRL_EPOCH -> "STALE_CTRL_EPOCH"
+  | OFFSET_METADATA_TOO_LARGE -> "OFFSET_METADATA_TOO_LARGE"
+  | CONF_UNKNOWN -> "CONF_UNKNOWN"
+  | CONF_INVALID -> "CONF_INVALID"
+----
+
+== Knitting it all together
+
+Given the amount of work done in the dessser library, datasino itself is
+quite a short program. The code will nonetheless be split in three modules:
+
+1. +datasino_cli.ml+ for all command line argument management,
+2. +datasino_main.ml+ for the main function of the program and
+3. +datasino_tool.ml+ for the various helper functions.
+
+.datasino_cli.ml
+[source,ml]
+----
+(* ...external modules... *)
+open Datasino_config
+open Datasino_tools
+open Datasino_main
+
+(* ...command line arguments... *)
+(* ...main function... *)
+----
+
+.datasino_main.ml
+[source,ml]
+----
+(* ...external modules... *)
+open Datasino_tools
+
+(* ...registering callback... *)
+(* ...main loop... *)
+(* ...command line check... *)
+(* ...output functions... *)
+(* ...start function... *)
+----
+
+.datasino_tools.ml
+[source,ml]
+----
+(* ...external modules... *)
+
+exception Not_implemented of string
+let todo msg =
+  raise (Not_implemented msg)
+
+(* ...helper functions... *)
+(* ...file functions... *)
+(* ...kafka functions... *)
+----

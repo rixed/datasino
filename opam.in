@@ -1,0 +1,26 @@
+opam-version: "2.0"
+version: "@PACKAGE_VERSION@"
+name: "datasino"
+maintainer: "rixed-opam@happyleptic.org"
+authors: "rixed-opam@happyleptic.org"
+homepage: "https://github.com/rixed/datasino"
+bug-reports: "https://github.com/rixed/datasino/issues"
+dev-repo: "git+https://github.com/rixed/datasino.git"
+synopsis: "Data generator for arbitrary types and various formats"
+build: [
+  ["./configure"]
+  [make]
+  [make "check"] {with-test}
+]
+install: [make "bin_dir=%{bin}%" "install"]
+remove: [make "bin_dir=%{bin}%" "uninstall"]
+depends: [
+  "batteries" {build >= "3.2.0"}
+  "cmdliner" {build & >= "1.0.4"}
+  "dessser" {>= "8.0.0" & < "9.0.0"}
+  "kafka" {build >= "0.4"}
+  "ocamlfind" {build & >= "1.8.0"}
+]
+depexts: [
+  [["debian"] ["librdkafka-dev"]] 
+]
