@@ -63,6 +63,6 @@ ENV EXTRA_SEARCH_PATHS=/root/.opam/datasino/lib/datasino
 # Command to run:
 WORKDIR /tmp
 ENTRYPOINT ["/root/.opam/datasino/bin/datasino"]
-CMD ["--help"]
+CMD []
 
 LABEL maintainer="rixed-github@happyleptic.org"
