@@ -76,6 +76,19 @@ serializers. We are only interested by maybe-nullable types for the schema.
 .command line arguments
 [source,ml]
 ----
+let schema =
+  let env = Term.env_info "SCHEMA" in
+  let doc = "The type of the data to be generated (inline or @file)." in
+  let i = Arg.info ~doc ~env ~docv:"TYPE" [ "s" ; "schema" ] in
+  Arg.(required (opt (some mn_t) None i))
+----
+
+With the +mn_t+ type of command line parameter defined from dessser parser and
+pretty printer:
+
+.command line custom types
+[source,ml]
+----
 let mn_t =
   let parse s =
     let s =
@@ -94,13 +107,8 @@ let mn_t =
     Format.fprintf fmt "%s" (DT.string_of_maybe_nullable mn)
   in
   Arg.conv ~docv:"TYPE" (parse, print)
-
-let schema =
-  let env = Term.env_info "SCHEMA" in
-  let doc = "The type of the data to be generated (inline or @file)." in
-  let i = Arg.info ~doc ~env ~docv:"TYPE" [ "s" ; "schema" ] in
-  Arg.(required (opt (some mn_t) None i))
 ----
+
 
 === Rate limit
 
@@ -515,7 +523,7 @@ let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
   let i = Arg.info ~doc ~env [ "csv-separator" ] in
-  Arg.(value (opt char ',' i))
+  Arg.(value (opt better_char ',' i))
 
 let null =
   let env = Term.env_info "CSV_NULL" in
@@ -527,7 +535,7 @@ let quote =
   let env = Term.env_info "CSV_QUOTE" in
   let doc = "Character to use to quote strings." in
   let i = Arg.info ~doc ~env [ "csv-quote" ] in
-  Arg.(value (opt (some char) None i))
+  Arg.(value (opt (some better_char) None i))
 
 let clickhouse_syntax =
   let env = Term.env_info "CSV_CLICKHOUSE_SYNTAX" in
@@ -549,6 +557,28 @@ $ clickhouse_syntax
 [source,ml]
 ----
 separator null quote clickhouse_syntax
+----
+
+In the arguments above the type +better_char+ is used to allow non printable
+chars, such as tabs, to be entered easily (whereas cmdliner default +char+ type
+accept only single characters). It is defined as:
+
+.command line custom types
+[source,ml]
+----
+let better_char =
+  let parse = function
+    | "\\t" ->
+        Pervasives.Ok '\t'
+    (* TODO: other special chars *)
+    | s when String.length s = 1 ->
+        Pervasives.Ok s.[0]
+    | s ->
+        Pervasives.Error (`Msg (Printf.sprintf "Not a character: %S" s))
+  and print fmt c =
+    Format.fprintf fmt "%C" c
+  in
+  Arg.conv ~docv:"CHAR" (parse, print)
 ----
 
 === Generating +serialize_random_value+
@@ -998,6 +1028,7 @@ open Datasino_config
 open Datasino_tools
 open Datasino_main
 
+(* ...command line custom types... *)
 (* ...command line arguments... *)
 (* ...main function... *)
 ----
