@@ -1,5 +1,5 @@
 
-# 929 "README.adoc"
+# 996 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 929 "README.adoc"
+# 996 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -121,14 +121,39 @@ let max_count =
   let i = Arg.info ~doc [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 721 "README.adoc"
+# 514 "README.adoc"
+let separator =
+  let env = Term.env_info "CSV_SEPARATOR" in
+  let doc = "Character to use as a separator." in
+  let i = Arg.info ~doc ~env [ "csv-separator" ] in
+  Arg.(value (opt char ',' i))
+
+let null =
+  let env = Term.env_info "CSV_NULL" in
+  let doc = "String to use as NULL." in
+  let i = Arg.info ~doc ~env [ "csv-null" ] in
+  Arg.(value (opt string "\\N" i))
+
+let quote =
+  let env = Term.env_info "CSV_QUOTE" in
+  let doc = "Character to use to quote strings." in
+  let i = Arg.info ~doc ~env [ "csv-quote" ] in
+  Arg.(value (opt (some char) None i))
+
+let clickhouse_syntax =
+  let env = Term.env_info "CSV_CLICKHOUSE_SYNTAX" in
+  let doc = "Should CSV encoder uses clickhouse syntax for compound types." in
+  let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
+  Arg.(value (flag i))
+
+# 788 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 934 "README.adoc"
+# 1001 "README.adoc"
 
 
 # 288 "README.adoc"
@@ -151,7 +176,13 @@ let () =
         $ max_size
         $ max_count
         
-# 731 "README.adoc"
+# 542 "README.adoc"
+$ separator
+$ null
+$ quote
+$ clickhouse_syntax
+
+# 798 "README.adoc"
 $ extra_search_paths
 
 # 306 "README.adoc"
@@ -160,5 +191,5 @@ $ extra_search_paths
   in
   Term.eval start_cmd |> Term.exit
 
-# 935 "README.adoc"
+# 1002 "README.adoc"
 

@@ -1,5 +1,5 @@
 
-# 954 "README.adoc"
+# 1021 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 954 "README.adoc"
+# 1021 "README.adoc"
 
 
 exception Not_implemented of string
@@ -30,15 +30,7 @@ let docv_of_enum l =
       String.print oc n)
   ) l
 
-# 437 "README.adoc"
-let serializer_of_encoding = function
-  | Null -> (module DessserDevNull.Ser : Dessser.SER)
-  | RingBuff -> (module DessserRamenRingBuffer.Ser : Dessser.SER)
-  | RowBinary -> (module DessserRowBinary.Ser : Dessser.SER)
-  | SExpr -> (module DessserSExpr.Ser : Dessser.SER)
-  | CSV -> (module DessserCsv.Ser : Dessser.SER)
-
-# 832 "README.adoc"
+# 899 "README.adoc"
 let file_exists name =
   let open Unix in
   try
@@ -55,16 +47,16 @@ let tmp_name name =
     if file_exists tmp_name then retry (n + 1) else tmp_name in
   retry 1
 
-# 960 "README.adoc"
+# 1027 "README.adoc"
 
 
-# 806 "README.adoc"
+# 873 "README.adoc"
 type opened_file =
   { fd : Unix.file_descr ;
     name : string ;
     opened_name : string }
 
-# 819 "README.adoc"
+# 886 "README.adoc"
 let open_file name =
   let open Unix in
   let opened_name =
@@ -72,24 +64,24 @@ let open_file name =
   { fd = openfile opened_name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640 ;
     name ; opened_name }
 
-# 855 "README.adoc"
+# 922 "README.adoc"
 let write_buffer file buffer =
   let bytes = DH.Pointer.contents buffer in
   let len = Bytes.length bytes in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
 
-# 867 "README.adoc"
+# 934 "README.adoc"
 let rotate_file file =
   let open Unix in
   Unix.close file.fd ;
   if file.opened_name <> file.name then
     Unix.rename file.opened_name file.name
 
-# 961 "README.adoc"
+# 1028 "README.adoc"
 
 
-# 881 "README.adoc"
+# 948 "README.adoc"
 let kafka_err_string =
   let open Kafka in
   function
@@ -125,5 +117,5 @@ let kafka_err_string =
   | CONF_UNKNOWN -> "CONF_UNKNOWN"
   | CONF_INVALID -> "CONF_INVALID"
 
-# 962 "README.adoc"
+# 1029 "README.adoc"
 

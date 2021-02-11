@@ -415,35 +415,14 @@ we compile and load that compilation unit.
 
 === The Serializer
 
-The next step is to build the serializer. Again, the serializer will be
+The next step is to build the +serializer+ function. Again, the serializer will be
 tailored to the specific schema and encoding, so that's another function for the
 compilation unit +compunit+.
 
-First a functor is applied to generate a serializer from any value into the
-specified encoding:
-
-.start function
-[source,ml]
-----
-  let module Ser = (val serializer_of_encoding encoding : Dessser.SER) in
-  let module Serializer = DessserHeapValue.Serialize (Ser) in
-----
-
-with +serializer_of_encoding+:
-
-.helper functions
-[source,ml]
-----
-let serializer_of_encoding = function
-  | Null -> (module DessserDevNull.Ser : Dessser.SER)
-  | RingBuff -> (module DessserRamenRingBuffer.Ser : Dessser.SER)
-  | RowBinary -> (module DessserRowBinary.Ser : Dessser.SER)
-  | SExpr -> (module DessserSExpr.Ser : Dessser.SER)
-  | CSV -> (module DessserCsv.Ser : Dessser.SER)
-----
-
-The result module has a function +serialize+ which returns the code to
-serialize any value of a given type. It's signature is almost what is needed:
+The way that function is build is to apply a functor that will then return a
+module specific for the chosen encoding, which exports a function named
++serialize+ which returns the code to serialize any value of a given type. Its
+signature is almost what is needed:
 
 .serialize signature
 [NOTE]
@@ -456,8 +435,8 @@ val serialize : ?config:Ser.config (* <1> *) ->
                 DE.t (* <3> *) ->  (* The "pointer" where to serialize into *)
                 DE.t (* <3> *)     (* The "pointer" after the serialized value *)
 ----
-<1> Some serializers behavior can be configured. For now let's assume the
-    default configuration is good enough.
+<1> Each encoding has different configuration options and we'd like to eventually
+    control all of them from datasino command line.
 
 <2> This is the type of the values that need to be serialized, ie. +schema+.
 
@@ -475,13 +454,101 @@ val serialize : ?config:Ser.config (* <1> *) ->
 What dessser calls "pointer" is merely a byte buffer under the hood (for
 OCaml backend at least).
 
+As the configuration of each encoder has its own type, we have to hide this
+configuration in a place where the actual module type is known, and return only
+the final, generic +serialize+ function.  This results in a code that's more
+robust than elegant:
+
 .start function
 [source,ml]
 ----
+  (* ...encoder configuration functions... *)
+  let serialize =
+    match encoding with
+    | Null ->
+        let module Ser = DessserDevNull.Ser in
+        let module Serializer = DessserHeapValue.Serialize (Ser) in
+        Serializer.serialize ?config:(null_config ())
+    | RingBuff ->
+        let module Ser = DessserRamenRingBuffer.Ser in
+        let module Serializer = DessserHeapValue.Serialize (Ser) in
+        Serializer.serialize ?config:(ringbuf_config ())
+    | RowBinary ->
+        let module Ser = DessserRowBinary.Ser in
+        let module Serializer = DessserHeapValue.Serialize (Ser) in
+        Serializer.serialize ?config:(rowbinary_config ())
+    | SExpr ->
+        let module Ser = DessserSExpr.Ser in
+        let module Serializer = DessserHeapValue.Serialize (Ser) in
+        Serializer.serialize ?config:(sexpr_config ())
+    | CSV ->
+        let module Ser = DessserCsv.Ser in
+        let module Serializer = DessserHeapValue.Serialize (Ser) in
+        Serializer.serialize ?config:(csv_config ()) in
   let compunit, _, _ =
     DE.func2 DT.(Value schema) DT.DataPtr (fun _l v dst ->
-      Serializer.serialize schema DE.Ops.copy_field v dst) |>
+      serialize schema DE.Ops.copy_field v dst) |>
     DU.add_identifier_of_expression compunit ~name:"serialize" in
+----
+
+with the various +XXX_config+ functions returning the specific configuration
+record based on the command line parameters, most of them still to be done:
+
+.encoder configuration functions
+[source,ml]
+----
+let null_config () = None
+and ringbuf_config () = None
+and rowbinary_config () = None
+and sexpr_config () = None
+and csv_config () =
+  Some { DessserCsv.default_config with
+           separator ; null ; quote ; clickhouse_syntax } in
+----
+
+given those additional command line parameters to control CSV encoding:
+
+.command line arguments
+[source,ml]
+----
+let separator =
+  let env = Term.env_info "CSV_SEPARATOR" in
+  let doc = "Character to use as a separator." in
+  let i = Arg.info ~doc ~env [ "csv-separator" ] in
+  Arg.(value (opt char ',' i))
+
+let null =
+  let env = Term.env_info "CSV_NULL" in
+  let doc = "String to use as NULL." in
+  let i = Arg.info ~doc ~env [ "csv-null" ] in
+  Arg.(value (opt string "\\N" i))
+
+let quote =
+  let env = Term.env_info "CSV_QUOTE" in
+  let doc = "Character to use to quote strings." in
+  let i = Arg.info ~doc ~env [ "csv-quote" ] in
+  Arg.(value (opt (some char) None i))
+
+let clickhouse_syntax =
+  let env = Term.env_info "CSV_CLICKHOUSE_SYNTAX" in
+  let doc = "Should CSV encoder uses clickhouse syntax for compound types." in
+  let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
+  Arg.(value (flag i))
+----
+
+.extra command line arguments
+[source,ml]
+----
+$ separator
+$ null
+$ quote
+$ clickhouse_syntax
+----
+
+.extra command line parameters
+[source,ml]
+----
+separator null quote clickhouse_syntax
 ----
 
 === Generating +serialize_random_value+
