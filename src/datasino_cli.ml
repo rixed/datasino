@@ -1,5 +1,5 @@
 
-# 1026 "README.adoc"
+# 1039 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1026 "README.adoc"
+# 1039 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -39,7 +39,7 @@ let mn_t =
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 
-# 569 "README.adoc"
+# 576 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -54,7 +54,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1031 "README.adoc"
+# 1044 "README.adoc"
 
 
 # 79 "README.adoc"
@@ -115,19 +115,25 @@ let kafka_topic =
                    ~env [ "kafka-topic" ] in
   Arg.(value (opt string "" i))
 
-let kafka_timeout =
-  let env = Term.env_info "KAFKA_TIMEOUT" in
-  let i = Arg.info ~doc:"Timeout when sending a Kafka message."
-                   ~env [ "kafka-timeout" ] in
-  Arg.(value (opt float 0. i))
-
 let kafka_partition =
   let env = Term.env_info "KAFKA_PARTITION" in
   let i = Arg.info ~doc:"Kafka partition where to send messages to."
                    ~env [ "partition" ] in
   Arg.(value (opt int 0 i))
 
-# 248 "README.adoc"
+let kafka_timeout =
+  let env = Term.env_info "KAFKA_TIMEOUT" in
+  let i = Arg.info ~doc:"Timeout when sending a Kafka message."
+                   ~env [ "kafka-timeout" ] in
+  Arg.(value (opt float 0. i))
+
+let kafka_wait_confirm =
+  let env = Term.env_info "KAFKA_WAIT_CONFIRMATION" in
+  let doc = "Wait for delivery after sending each message." in
+  let i = Arg.info ~doc ~env [ "kafka-wait-confirmation" ] in
+  Arg.(value (flag i))
+
+# 254 "README.adoc"
 let max_size =
   let doc = "Rotate the current output file/kafka message after that size \
              (in bytes)" in
@@ -140,7 +146,7 @@ let max_count =
   let i = Arg.info ~doc [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 522 "README.adoc"
+# 529 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -165,17 +171,17 @@ let clickhouse_syntax =
   let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
   Arg.(value (flag i))
 
-# 818 "README.adoc"
+# 831 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1032 "README.adoc"
+# 1045 "README.adoc"
 
 
-# 296 "README.adoc"
+# 302 "README.adoc"
 let () =
   Printf.printf "Datasino v%s\n%!" version ;
   let start_cmd =
@@ -192,23 +198,24 @@ let () =
         $ kafka_topic
         $ kafka_partition
         $ kafka_timeout
+        $ kafka_wait_confirm
         $ max_size
         $ max_count
         
-# 550 "README.adoc"
+# 557 "README.adoc"
 $ separator
 $ null
 $ quote
 $ clickhouse_syntax
 
-# 828 "README.adoc"
+# 841 "README.adoc"
 $ extra_search_paths
 
-# 314 "README.adoc"
+# 321 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in
   Term.eval start_cmd |> Term.exit
 
-# 1033 "README.adoc"
+# 1046 "README.adoc"
 
