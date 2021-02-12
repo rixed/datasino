@@ -124,7 +124,7 @@ or zero values to mean "no limit").
 let rate_limit =
   let env = Term.env_info "RATE_LIMIT" in
   let doc = "Maximum number of generated values per seconds." in
-  let i = Arg.info ~doc ~env [ "rate-limit" ] in
+  let i = Arg.info ~doc ~env [ "r" ; "rate-limit" ] in
   Arg.(value (opt float 0. i))
 ----
 
@@ -252,15 +252,17 @@ many values to write per Kafka message.
 [source,ml]
 ----
 let max_size =
+  let env = Term.env_info "MAX_SIZE" in
   let doc = "Rotate the current output file/kafka message after that size \
              (in bytes)" in
-  let i = Arg.info ~doc [ "max-size" ] in
+  let i = Arg.info ~doc ~env [ "max-size" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
 let max_count =
+  let env = Term.env_info "MAX_COUNT" in
   let doc = "Rotate the current output file/kafka message after that number \
              of values" in
-  let i = Arg.info ~doc [ "max-count" ] in
+  let i = Arg.info ~doc ~env [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 ----
 <1> 0 can be used to mean "no limit".
@@ -707,6 +709,7 @@ let output_to_kafka brokers topic partition timeout wait_confirm max_size =
         string_of_int (int_of_float (timeout *. 1000.)) ;
     ] in
   let msg_id = ref 0 in
+  let had_err = ref false in
   fun buffer ->
     let bytes = DH.Pointer.contents buffer in
     let str = Bytes.unsafe_to_string bytes in (* producer will not keep a ref on this *)
@@ -716,6 +719,9 @@ let output_to_kafka brokers topic partition timeout wait_confirm max_size =
         if wait_confirm then Kafka.wait_delivery handler ; (* <2> *)
         incr msg_id
       with Kafka.Error (Kafka.QUEUE_FULL, _) ->
+        if not !had_err then
+          Printf.eprintf "Kafka queue is full, slowing down...\n%!" ;
+        had_err := true ;
         Unix.sleepf 0.01 ;
         send () in
     send ()
@@ -748,7 +754,7 @@ any two messages but for any then the inaccuracy of the sleep duration would
 become of the same order of magnitude than the rate limit itself for rates that
 are high enough.
 
-Let's merely sleep once every N messages when N is the rate limit itself, ie
+Let's merely sleep once every N messages when N is the rate limit itself, ie.
 sleep about once a second.
 
 .start function
