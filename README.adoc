@@ -784,6 +784,95 @@ sleep about once a second.
         ) in
 ----
 
+While we are at it, we'd like to display periodically the past rates, in a
++loadavg+ way, that is: the average over the last 1 minute, the average over
+the last 5 mins, and the total average. For this we need three counts, and a
+function being called every time +rate_limit+ is:
+
+.start function
+[source,ml]
+----
+  let display_rates =
+    let avg_tot = Avg.make ()
+    and avg_5m = Avg.make ~rotate_every:(mins 5) ()
+    and avg_1m = Avg.make ~rotate_every:(mins 1) ()
+    and avg_10s = Avg.make ~rotate_every:10. () in
+    fun () ->
+      let now = Unix.gettimeofday () in
+      let display =
+        Avg.update avg_tot now ||| (* <1> *)
+        Avg.update avg_5m now |||
+        Avg.update avg_1m now |||
+        Avg.update avg_10s now in
+      if display then
+        Printf.printf "Rates: 10s: %a, 1min: %a, 5min: %a, global: %a\n%!"
+          Avg.print avg_10s
+          Avg.print avg_1m
+          Avg.print avg_5m
+          Avg.print avg_tot in
+  let rate_limit () =
+    display_rates () ;
+    rate_limit () in
+----
+
+with a special object +avg+ that basically stores a starting time and a counter:
+
+.helper functions
+[source,ml]
+----
+module Avg =
+struct
+  type t =
+    { mutable start : float (* timestamp *) ;
+      mutable count : int ;
+      rotate_every : float option (* seconds *) ;
+      mutable last_avg : float }
+
+  let make ?rotate_every () =
+    { start = Unix.gettimeofday () ;
+      count = 0 ;
+      rotate_every ;
+      last_avg = ~-.1. }
+
+  let update t now =
+    let dt = now -. t.start in
+    t.count <- t.count + 1 ;
+    match t.rotate_every with
+    | None ->
+        t.last_avg <- float_of_int t.count /. dt ;
+        false
+    | Some r ->
+        if dt >= r then (
+          t.last_avg <- float_of_int (t.count - 1) /. r ;
+          while now -. t.start >= r do
+            t.start <- t.start +. r
+          done ;
+          t.count <- 1 ;
+          true
+        ) else (
+          false
+        )
+
+  let print oc t =
+    if t.last_avg >= 0. then
+      Printf.printf "%g" t.last_avg
+    else
+      String.print oc "n.a."
+end
+----
+
+Notice earlier in <1> that we've used this weird operator that looks a bit like
+the or operator (+||+)? This is indeed the or operator, just with no
+shortcutting as we want the update functions side effects to take place even
+when the first one returns true (need to print the result). To avoid
+shortcutting it is good enough to rename the operator:
+
+.helper functions
+[source,ml]
+----
+let (|||) = (||)
+----
+
 All the required functions have been defined, but two of them still
 have to be actually compiled and dynamically loaded. Let's go down
 to this now.
@@ -891,8 +980,18 @@ offer a resizeable +Pointer+ to address this issue.
 
 == Filling in the boring details
 
-A few non trivial functions have been left aside but need to be filled in in
+A few trivial functions have been left aside but need to be filled in in
 order for datasino to compile.
+
+=== Miscellaneous
+
+We made use of this award winning minutes to seconds calculator:
+
+.helper functions
+[source,ml]
+----
+let mins m = float_of_int (60 * m)
+----
 
 === File functions
 

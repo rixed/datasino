@@ -1,5 +1,5 @@
 
-# 1039 "README.adoc"
+# 1144 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1039 "README.adoc"
+# 1144 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -39,7 +39,7 @@ let mn_t =
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 
-# 576 "README.adoc"
+# 578 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -54,7 +54,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1044 "README.adoc"
+# 1149 "README.adoc"
 
 
 # 79 "README.adoc"
@@ -68,7 +68,7 @@ let schema =
 let rate_limit =
   let env = Term.env_info "RATE_LIMIT" in
   let doc = "Maximum number of generated values per seconds." in
-  let i = Arg.info ~doc ~env [ "rate-limit" ] in
+  let i = Arg.info ~doc ~env [ "r" ; "rate-limit" ] in
   Arg.(value (opt float 0. i))
 
 # 143 "README.adoc"
@@ -135,18 +135,20 @@ let kafka_wait_confirm =
 
 # 254 "README.adoc"
 let max_size =
+  let env = Term.env_info "MAX_SIZE" in
   let doc = "Rotate the current output file/kafka message after that size \
              (in bytes)" in
-  let i = Arg.info ~doc [ "max-size" ] in
+  let i = Arg.info ~doc ~env [ "max-size" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
 let max_count =
+  let env = Term.env_info "MAX_COUNT" in
   let doc = "Rotate the current output file/kafka message after that number \
              of values" in
-  let i = Arg.info ~doc [ "max-count" ] in
+  let i = Arg.info ~doc ~env [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 529 "README.adoc"
+# 531 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -171,17 +173,17 @@ let clickhouse_syntax =
   let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
   Arg.(value (flag i))
 
-# 831 "README.adoc"
+# 926 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1045 "README.adoc"
+# 1150 "README.adoc"
 
 
-# 302 "README.adoc"
+# 304 "README.adoc"
 let () =
   Printf.printf "Datasino v%s\n%!" version ;
   let start_cmd =
@@ -202,20 +204,20 @@ let () =
         $ max_size
         $ max_count
         
-# 557 "README.adoc"
+# 559 "README.adoc"
 $ separator
 $ null
 $ quote
 $ clickhouse_syntax
 
-# 841 "README.adoc"
+# 936 "README.adoc"
 $ extra_search_paths
 
-# 321 "README.adoc"
+# 323 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in
   Term.eval start_cmd |> Term.exit
 
-# 1046 "README.adoc"
+# 1151 "README.adoc"
 

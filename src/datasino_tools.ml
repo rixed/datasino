@@ -1,5 +1,5 @@
 
-# 1065 "README.adoc"
+# 1170 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1065 "README.adoc"
+# 1170 "README.adoc"
 
 
 exception Not_implemented of string
@@ -30,7 +30,54 @@ let docv_of_enum l =
       String.print oc n)
   ) l
 
-# 942 "README.adoc"
+# 823 "README.adoc"
+module Avg =
+struct
+  type t =
+    { mutable start : float (* timestamp *) ;
+      mutable count : int ;
+      rotate_every : float option (* seconds *) ;
+      mutable last_avg : float }
+
+  let make ?rotate_every () =
+    { start = Unix.gettimeofday () ;
+      count = 0 ;
+      rotate_every ;
+      last_avg = ~-.1. }
+
+  let update t now =
+    let dt = now -. t.start in
+    t.count <- t.count + 1 ;
+    match t.rotate_every with
+    | None ->
+        t.last_avg <- float_of_int t.count /. dt ;
+        false
+    | Some r ->
+        if dt >= r then (
+          t.last_avg <- float_of_int (t.count - 1) /. r ;
+          while now -. t.start >= r do
+            t.start <- t.start +. r
+          done ;
+          t.count <- 1 ;
+          true
+        ) else (
+          false
+        )
+
+  let print oc t =
+    if t.last_avg >= 0. then
+      Printf.printf "%g" t.last_avg
+    else
+      String.print oc "n.a."
+end
+
+# 873 "README.adoc"
+let (|||) = (||)
+
+# 993 "README.adoc"
+let mins m = float_of_int (60 * m)
+
+# 1047 "README.adoc"
 let file_exists name =
   let open Unix in
   try
@@ -47,16 +94,16 @@ let tmp_name name =
     if file_exists tmp_name then retry (n + 1) else tmp_name in
   retry 1
 
-# 1071 "README.adoc"
+# 1176 "README.adoc"
 
 
-# 916 "README.adoc"
+# 1021 "README.adoc"
 type opened_file =
   { fd : Unix.file_descr ;
     name : string ;
     opened_name : string }
 
-# 929 "README.adoc"
+# 1034 "README.adoc"
 let open_file name =
   let open Unix in
   let opened_name =
@@ -64,24 +111,24 @@ let open_file name =
   { fd = openfile opened_name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640 ;
     name ; opened_name }
 
-# 965 "README.adoc"
+# 1070 "README.adoc"
 let write_buffer file buffer =
   let bytes = DH.Pointer.contents buffer in
   let len = Bytes.length bytes in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
 
-# 977 "README.adoc"
+# 1082 "README.adoc"
 let rotate_file file =
   let open Unix in
   Unix.close file.fd ;
   if file.opened_name <> file.name then
     Unix.rename file.opened_name file.name
 
-# 1072 "README.adoc"
+# 1177 "README.adoc"
 
 
-# 991 "README.adoc"
+# 1096 "README.adoc"
 let kafka_err_string =
   let open Kafka in
   function
@@ -117,5 +164,5 @@ let kafka_err_string =
   | CONF_UNKNOWN -> "CONF_UNKNOWN"
   | CONF_INVALID -> "CONF_INVALID"
 
-# 1073 "README.adoc"
+# 1178 "README.adoc"
 
