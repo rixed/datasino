@@ -225,11 +225,12 @@ let kafka_topic =
                    ~env [ "kafka-topic" ] in
   Arg.(value (opt string "" i))
 
-let kafka_partition =
-  let env = Term.env_info "KAFKA_PARTITION" in
-  let i = Arg.info ~doc:"Kafka partition where to send messages to."
-                   ~env [ "partition" ] in
-  Arg.(value (opt int 0 i))
+let kafka_partitions =
+  let env = Term.env_info "KAFKA_PARTITIONS" in
+  let i = Arg.info ~doc:"Kafka partitions where to send messages to \
+                         (in a round-robbin maner)."
+                   ~env [ "partitions" ] in
+  Arg.(value (opt (list int) [] i))
 
 let kafka_timeout =
   let env = Term.env_info "KAFKA_TIMEOUT" in
@@ -290,12 +291,12 @@ and only one target is configured:
 .command line check
 [source,ml]
 ----
-let check_command_line output_file discard kafka_brokers kafka_topic kafka_partition
+let check_command_line output_file discard kafka_brokers kafka_topic kafka_partitions
                        kafka_timeout kafka_wait_confirm kafka_compression_codec
                        kafka_compression_level =
   let use_file = output_file <> "" in
   let use_kafka =
-    kafka_brokers <> "" || kafka_topic <> "" || kafka_partition <> 0 ||
+    kafka_brokers <> "" || kafka_topic <> "" || kafka_partitions <> [] ||
     kafka_timeout <> 0. || kafka_wait_confirm || kafka_compression_codec <> "" ||
     kafka_compression_level <> ~-1 in
   if use_file && discard ||
@@ -331,7 +332,7 @@ let () =
         $ discard
         $ kafka_brokers
         $ kafka_topic
-        $ kafka_partition
+        $ kafka_partitions
         $ kafka_timeout
         $ kafka_wait_confirm
         $ kafka_compression_codec
@@ -352,12 +353,12 @@ function:
 ----
 let start
       schema rate_limit stutter encoding output_file discard
-      kafka_brokers kafka_topic kafka_partition kafka_timeout kafka_wait_confirm
+      kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
       kafka_compression_codec kafka_compression_level
       max_size max_count (* ...extra command line parameters... *) =
   check_command_line
     output_file discard
-    kafka_brokers kafka_topic kafka_partition kafka_timeout kafka_wait_confirm
+    kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
     kafka_compression_codec kafka_compression_level ;
 ----
 
@@ -678,7 +679,7 @@ let output =
   else if discard then
     ignore
   else
-    output_to_kafka kafka_brokers kafka_topic kafka_partition kafka_timeout
+    output_to_kafka kafka_brokers kafka_topic kafka_partitions kafka_timeout
                     kafka_wait_confirm kafka_compression_codec kafka_compression_level
                     max_msg_size
   in
@@ -715,7 +716,7 @@ As for kafka, we merely rely on the bindings to rdkafka client library:
 .output functions
 [source,ml]
 ----
-let output_to_kafka brokers topic partition timeout wait_confirm
+let output_to_kafka brokers topic partitions timeout wait_confirm
                     compression_codec compression_level max_msg_size =
   let open Kafka in
   Printf.printf "Connecting to Kafka at %s\n%!" brokers ;
@@ -737,12 +738,16 @@ let output_to_kafka brokers topic partition timeout wait_confirm
     ] in
   let msg_id = ref 0 in
   let had_err = ref false in
+  let partitions = if partitions = [] then [| 0 |]
+                   else Array.of_list partitions in
+  let next_partition = ref 0 in
   fun buffer ->
     let bytes = DH.Pointer.contents buffer in
     let str = Bytes.unsafe_to_string bytes in (* producer will not keep a ref on this *)
     let rec send () =
       try
-        Kafka.produce producer ~msg_id:!msg_id partition str ;
+        Kafka.produce producer ~msg_id:!msg_id partitions.(!next_partition) str ;
+        next_partition := (!next_partition + 1) mod Array.length partitions ;
         if wait_confirm then Kafka.wait_delivery handler ; (* <1> *)
         incr msg_id
       with Kafka.Error (Kafka.QUEUE_FULL, _) ->
