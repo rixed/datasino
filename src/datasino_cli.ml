@@ -1,5 +1,5 @@
 
-# 1165 "README.adoc"
+# 1177 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1165 "README.adoc"
+# 1177 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -39,7 +39,7 @@ let mn_t =
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 
-# 599 "README.adoc"
+# 611 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -54,7 +54,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1170 "README.adoc"
+# 1182 "README.adoc"
 
 
 # 79 "README.adoc"
@@ -138,7 +138,7 @@ let kafka_compression_codec =
   let env = Term.env_info "KAFKA_COMPRESSION_CODEC" in
   let doc = "Compression codec to use." in
   let i = Arg.info ~doc ~env [ "kafka-compression-codec" ] in
-  Arg.(value (opt string "inherit" i))
+  Arg.(value (opt string default_kafka_compression_codec i))
 
 let kafka_compression_level =
   let env = Term.env_info "KAFKA_COMPRESSION_LEVEL" in
@@ -146,7 +146,7 @@ let kafka_compression_level =
   let i = Arg.info ~doc ~env [ "kafka-compression-level" ] in
   Arg.(value (opt int ~-1 i))
 
-# 267 "README.adoc"
+# 275 "README.adoc"
 let max_size =
   let env = Term.env_info "MAX_SIZE" in
   let doc = "Rotate the current output file/kafka message after that size \
@@ -161,7 +161,7 @@ let max_count =
   let i = Arg.info ~doc ~env [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 552 "README.adoc"
+# 564 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -186,17 +186,17 @@ let clickhouse_syntax =
   let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
   Arg.(value (flag i))
 
-# 954 "README.adoc"
+# 966 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1171 "README.adoc"
+# 1183 "README.adoc"
 
 
-# 321 "README.adoc"
+# 333 "README.adoc"
 let () =
   Printf.printf "Datasino v%s\n%!" version ;
   let start_cmd =
@@ -219,20 +219,20 @@ let () =
         $ max_size
         $ max_count
         
-# 580 "README.adoc"
+# 592 "README.adoc"
 $ separator
 $ null
 $ quote
 $ clickhouse_syntax
 
-# 964 "README.adoc"
+# 976 "README.adoc"
 $ extra_search_paths
 
-# 342 "README.adoc"
+# 354 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in
   Term.eval start_cmd |> Term.exit
 
-# 1172 "README.adoc"
+# 1184 "README.adoc"
 

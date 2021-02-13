@@ -248,13 +248,21 @@ let kafka_compression_codec =
   let env = Term.env_info "KAFKA_COMPRESSION_CODEC" in
   let doc = "Compression codec to use." in
   let i = Arg.info ~doc ~env [ "kafka-compression-codec" ] in
-  Arg.(value (opt string "inherit" i))
+  Arg.(value (opt string default_kafka_compression_codec i))
 
 let kafka_compression_level =
   let env = Term.env_info "KAFKA_COMPRESSION_LEVEL" in
   let doc = "Compression level to use (-1..12, -1 being default level)." in
   let i = Arg.info ~doc ~env [ "kafka-compression-level" ] in
   Arg.(value (opt int ~-1 i))
+----
+
+where:
+
+.default command line values
+[source,ml]
+----
+let default_kafka_compression_codec = "inherit"
 ----
 
 Instead of appending every values into a single file it is sometime useful to
@@ -295,9 +303,11 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
                        kafka_timeout kafka_wait_confirm kafka_compression_codec
                        kafka_compression_level =
   let use_file = output_file <> "" in
-  let use_kafka =
-    kafka_brokers <> "" || kafka_topic <> "" || kafka_partitions <> [] ||
-    kafka_timeout <> 0. || kafka_wait_confirm || kafka_compression_codec <> "" ||
+  let use_kafka = kafka_brokers <> "" in
+  let mention_kafka =
+    kafka_topic <> "" || kafka_partitions <> [] ||
+    kafka_timeout <> 0. || kafka_wait_confirm ||
+    kafka_compression_codec <> default_kafka_compression_codec ||
     kafka_compression_level <> ~-1 in
   if use_file && discard ||
      use_file && use_kafka ||
@@ -305,6 +315,8 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
     raise (Failure "More than one target is configured") ;
   if not (use_file || use_kafka || discard) then
     raise (Failure "No target configured") ;
+  if mention_kafka && not use_kafka then
+    raise (Failure "kafka options given but kafka is no the target?") ;
   if kafka_compression_level < -1 || kafka_compression_level > 12 then
     raise (Failure "--kafka-compression-level must be between -1 and 12")
 ----
@@ -1180,6 +1192,7 @@ open Datasino_tools
 
 (* ...registering callback... *)
 (* ...main loop... *)
+(* ...default command line values... *)
 (* ...command line check... *)
 (* ...output functions... *)
 (* ...start function... *)
