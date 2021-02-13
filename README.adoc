@@ -242,6 +242,18 @@ let kafka_wait_confirm =
   let doc = "Wait for delivery after sending each message." in
   let i = Arg.info ~doc ~env [ "kafka-wait-confirmation" ] in
   Arg.(value (flag i))
+
+let kafka_compression_codec =
+  let env = Term.env_info "KAFKA_COMPRESSION_CODEC" in
+  let doc = "Compression codec to use." in
+  let i = Arg.info ~doc ~env [ "kafka-compression-codec" ] in
+  Arg.(value (opt string "inherit" i))
+
+let kafka_compression_level =
+  let env = Term.env_info "KAFKA_COMPRESSION_LEVEL" in
+  let doc = "Compression level to use (-1..12, -1 being default level)." in
+  let i = Arg.info ~doc ~env [ "kafka-compression-level" ] in
+  Arg.(value (opt int ~-1 i))
 ----
 
 Instead of appending every values into a single file it is sometime useful to
@@ -279,17 +291,21 @@ and only one target is configured:
 [source,ml]
 ----
 let check_command_line output_file discard kafka_brokers kafka_topic kafka_partition
-                       kafka_timeout kafka_wait_confirm =
+                       kafka_timeout kafka_wait_confirm kafka_compression_codec
+                       kafka_compression_level =
   let use_file = output_file <> "" in
   let use_kafka =
     kafka_brokers <> "" || kafka_topic <> "" || kafka_partition <> 0 ||
-    kafka_timeout <> 0. || kafka_wait_confirm in
+    kafka_timeout <> 0. || kafka_wait_confirm || kafka_compression_codec <> "" ||
+    kafka_compression_level <> ~-1 in
   if use_file && discard ||
      use_file && use_kafka ||
      use_kafka && discard then
     raise (Failure "More than one target is configured") ;
   if not (use_file || use_kafka || discard) then
-    raise (Failure "No target configured")
+    raise (Failure "No target configured") ;
+  if kafka_compression_level < -1 || kafka_compression_level > 12 then
+    raise (Failure "--kafka-compression-level must be between -1 and 12")
 ----
 
 == Main function
@@ -318,6 +334,8 @@ let () =
         $ kafka_partition
         $ kafka_timeout
         $ kafka_wait_confirm
+        $ kafka_compression_codec
+        $ kafka_compression_level
         $ max_size
         $ max_count
         (* ...extra command line arguments... *)),
@@ -335,10 +353,12 @@ function:
 let start
       schema rate_limit stutter encoding output_file discard
       kafka_brokers kafka_topic kafka_partition kafka_timeout kafka_wait_confirm
+      kafka_compression_codec kafka_compression_level
       max_size max_count (* ...extra command line parameters... *) =
   check_command_line
     output_file discard
-    kafka_brokers kafka_topic kafka_partition kafka_timeout kafka_wait_confirm ;
+    kafka_brokers kafka_topic kafka_partition kafka_timeout kafka_wait_confirm
+    kafka_compression_codec kafka_compression_level ;
 ----
 
 For simplicity datasino is going to append values in a single buffer once,
@@ -656,7 +676,8 @@ let output =
     ignore
   else
     output_to_kafka kafka_brokers kafka_topic kafka_partition kafka_timeout
-                    kafka_wait_confirm max_size
+                    kafka_wait_confirm kafka_compression_codec kafka_compression_level
+                    max_size
   in
 ----
 
@@ -691,7 +712,8 @@ As for kafka, we merely rely on the bindings to rdkafka client library:
 .output functions
 [source,ml]
 ----
-let output_to_kafka brokers topic partition timeout wait_confirm max_size =
+let output_to_kafka brokers topic partition timeout wait_confirm
+                    compression_codec compression_level max_size =
   let open Kafka in
   Printf.printf "Connecting to Kafka at %s\n%!" brokers ;
   let delivery_callback msg_id = function
@@ -702,7 +724,11 @@ let output_to_kafka brokers topic partition timeout wait_confirm max_size =
   let handler =
     new_producer ~delivery_callback [
       "metadata.broker.list", brokers ;
-      "message.max.bytes", string_of_int (max_size + 10_000) (* <1> *) ] in
+      "message.max.bytes",
+        string_of_int (if max_size > 0 then max_size + 10_000 (* <1> *)
+                       else 10_000_000) ;
+      "compression.codec", compression_codec ;
+      "compression.level", string_of_int compression_level ] in
   let producer =
     Kafka.new_topic handler topic [
       "message.timeout.ms",
