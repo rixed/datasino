@@ -669,6 +669,9 @@ As each output technique is a bit verbose let's split them in distinct functions
 .start function
 [source,ml]
 ----
+let max_msg_size = (* <1> *)
+  if max_size > 0 then max_size + 10_000
+  else 10_000_000 in
 let output =
   if output_file <> "" then
     output_to_file output_file max_count max_size
@@ -677,7 +680,7 @@ let output =
   else
     output_to_kafka kafka_brokers kafka_topic kafka_partition kafka_timeout
                     kafka_wait_confirm kafka_compression_codec kafka_compression_level
-                    max_size
+                    max_msg_size
   in
 ----
 
@@ -713,7 +716,7 @@ As for kafka, we merely rely on the bindings to rdkafka client library:
 [source,ml]
 ----
 let output_to_kafka brokers topic partition timeout wait_confirm
-                    compression_codec compression_level max_size =
+                    compression_codec compression_level max_msg_size =
   let open Kafka in
   Printf.printf "Connecting to Kafka at %s\n%!" brokers ;
   let delivery_callback msg_id = function
@@ -724,9 +727,7 @@ let output_to_kafka brokers topic partition timeout wait_confirm
   let handler =
     new_producer ~delivery_callback [
       "metadata.broker.list", brokers ;
-      "message.max.bytes",
-        string_of_int (if max_size > 0 then max_size + 10_000 (* <1> *)
-                       else 10_000_000) ;
+      "message.max.bytes", string_of_int max_msg_size ;
       "compression.codec", compression_codec ;
       "compression.level", string_of_int compression_level ] in
   let producer =
@@ -742,7 +743,7 @@ let output_to_kafka brokers topic partition timeout wait_confirm
     let rec send () =
       try
         Kafka.produce producer ~msg_id:!msg_id partition str ;
-        if wait_confirm then Kafka.wait_delivery handler ; (* <2> *)
+        if wait_confirm then Kafka.wait_delivery handler ; (* <1> *)
         incr msg_id
       with Kafka.Error (Kafka.QUEUE_FULL, _) ->
         if not !had_err then
@@ -753,11 +754,7 @@ let output_to_kafka brokers topic partition timeout wait_confirm
     send ()
     (* TODO: on exit, release all producers *)
 ----
-In <1> the maximum message size is set to a bit more than the +max_size+
-specified, as this maximum size is just an indicator of when to send the
-message not a hard limit.
-
-Notice in <2> that this wait could be done only occasionally with little
+Notice in <1> that this wait could be done only occasionally with little
 gain.
 
 We now have all the possible output functions but all is not quite done yet, as
@@ -993,16 +990,9 @@ be called:
 .start function
 [source,ml]
 ----
-  let buffer = DH.Pointer.of_buffer (max_size + 100_000) in (* <1> *)
+  let buffer = DH.Pointer.of_buffer max_msg_size in
   main_loop serialize_random_value is_full output rate_limit buffer
 ----
-
-Notice that in <1> the allocated buffer is taken to be just 100kb
-above the defined +max_size+ (which could be 0). This assumes that
-no single value will ever be larger than 100kb.
-
-A later, more sophisticated version of the dessser library might
-offer a resizeable +Pointer+ to address this issue.
 
 == Filling in the boring details
 
