@@ -140,7 +140,7 @@ except datasino will not even bother interpolating.
 .command line arguments
 [source,ml]
 ----
-let stutter = (* TODO *)
+let stutter =
   let env = Term.env_info "STUTTER" in
   let doc = "Reuse each generated value that many time." in
   let i = Arg.info ~doc ~env [ "stutter" ] in
@@ -1026,6 +1026,44 @@ return the actual function will be ready for duty.
 ----
 
 Et voilà! Rarely can so many things go wrong in so few lines.
+
+=== Cheating for a higher data rate
+
+The +stutter+ parameter allows datasino to reuse the same random value several
+times to obtain a higher throughput for cheap.  The +serialize_random_value+
+function is the right place to implement this: it keeps the main loop simple
+and we can not only reuse the value but directly the serialized buffer, saving
+even more CPU:
+
+.start function
+[source,ml]
+----
+  let serialize_random_value =
+    (* Store the last serialized value: *)
+    let last_value = Bytes.create max_msg_size
+    (* Its length: *)
+    and last_value_len = ref 0
+    (* Count down how many repetitions are still allowed: *)
+    and allowance = ref 0. in (* <2> *)
+    fun buffer ->
+      if !allowance > 1. then (
+        allowance := !allowance -. 1. ;
+        (* Copy the last saved value into the passed in buffer: *)
+        Bytes.blit last_value 0 buffer.DH.Pointer.bytes buffer.start !last_value_len ;
+        DH.Pointer.skip buffer !last_value_len
+      ) else (
+        let start = buffer.start in
+        let buffer = serialize_random_value buffer in
+        if stutter > 0. then (
+          (* Copy the new value in last_value: *)
+          let len = buffer.start - start in
+          Bytes.blit buffer.bytes start last_value 0 len ;
+          last_value_len := len ;
+          allowance := !allowance +. stutter
+        ) (* else don't bother *) ;
+        buffer
+      ) in
+----
 
 === Calling the main loop
 

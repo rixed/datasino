@@ -1,5 +1,5 @@
 
-# 1218 "README.adoc"
+# 1256 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1218 "README.adoc"
+# 1256 "README.adoc"
 
 open Datasino_tools
 
@@ -21,7 +21,7 @@ open Datasino_tools
 let gen_serialize_random_value : (DH.Pointer.t -> DH.Pointer.t) ref =
   ref (fun _buffer -> assert false)
 
-# 1221 "README.adoc"
+# 1259 "README.adoc"
 
 
 # 414 "README.adoc"
@@ -35,13 +35,13 @@ let main_loop serialize_random_value is_full output rate_limit buffer =
     loop buffer in
   loop buffer
 
-# 1222 "README.adoc"
+# 1260 "README.adoc"
 
 
 # 265 "README.adoc"
 let default_kafka_compression_codec = "inherit"
 
-# 1223 "README.adoc"
+# 1261 "README.adoc"
 
 
 # 302 "README.adoc"
@@ -66,7 +66,7 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
   if kafka_compression_level < -1 || kafka_compression_level > 12 then
     raise (Failure "--kafka-compression-level must be between -1 and 12")
 
-# 1224 "README.adoc"
+# 1262 "README.adoc"
 
 
 # 705 "README.adoc"
@@ -131,7 +131,7 @@ let output_to_kafka brokers topic partitions timeout wait_confirm
     send ()
     (* TODO: on exit, release all producers *)
 
-# 1225 "README.adoc"
+# 1263 "README.adoc"
 
 
 # 366 "README.adoc"
@@ -309,9 +309,36 @@ let output buffer =
   DessserDSTools.compile_and_load ~extra_search_paths backend_mod compunit ;
   let serialize_random_value = !gen_serialize_random_value in
 
-# 1038 "README.adoc"
+# 1041 "README.adoc"
+  let serialize_random_value =
+    (* Store the last serialized value: *)
+    let last_value = Bytes.create max_msg_size
+    (* Its length: *)
+    and last_value_len = ref 0
+    (* Count down how many repetitions are still allowed: *)
+    and allowance = ref 0. in (* <2> *)
+    fun buffer ->
+      if !allowance > 1. then (
+        allowance := !allowance -. 1. ;
+        (* Copy the last saved value into the passed in buffer: *)
+        Bytes.blit last_value 0 buffer.DH.Pointer.bytes buffer.start !last_value_len ;
+        DH.Pointer.skip buffer !last_value_len
+      ) else (
+        let start = buffer.start in
+        let buffer = serialize_random_value buffer in
+        if stutter > 0. then (
+          (* Copy the new value in last_value: *)
+          let len = buffer.start - start in
+          Bytes.blit buffer.bytes start last_value 0 len ;
+          last_value_len := len ;
+          allowance := !allowance +. stutter
+        ) (* else don't bother *) ;
+        buffer
+      ) in
+
+# 1076 "README.adoc"
   let buffer = DH.Pointer.of_buffer max_msg_size in
   main_loop serialize_random_value is_full output rate_limit buffer
 
-# 1226 "README.adoc"
+# 1264 "README.adoc"
 

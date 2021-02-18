@@ -1,5 +1,5 @@
 
-# 1205 "README.adoc"
+# 1243 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1205 "README.adoc"
+# 1243 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -54,7 +54,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1210 "README.adoc"
+# 1248 "README.adoc"
 
 
 # 79 "README.adoc"
@@ -72,7 +72,7 @@ let rate_limit =
   Arg.(value (opt float 0. i))
 
 # 143 "README.adoc"
-let stutter = (* TODO *)
+let stutter =
   let env = Term.env_info "STUTTER" in
   let doc = "Reuse each generated value that many time." in
   let i = Arg.info ~doc ~env [ "stutter" ] in
@@ -200,7 +200,7 @@ let extra_search_paths =
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1211 "README.adoc"
+# 1249 "README.adoc"
 
 
 # 333 "README.adoc"
@@ -244,5 +244,5 @@ $ extra_search_paths
   in
   Term.eval start_cmd |> Term.exit
 
-# 1212 "README.adoc"
+# 1250 "README.adoc"
 
