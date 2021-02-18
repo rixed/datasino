@@ -149,14 +149,14 @@ reinstall: uninstall install
 
 docker: docker/Dockerfile
 	@echo 'Building docker image'
-	docker build -t rixed/datasino:latest --squash -f $< docker/
+	docker build -t rixed/datasino:latest -f $< docker/
+	docker tag rixed/datasino:latest localhost:5000/datasino
+	docker tag rixed/datasino:latest rixed/datasino:v$(VERSION)
 
 docker-push:
 	@echo 'Pushing docker image (local)'
-	docker tag rixed/datasino:latest localhost:5000/datasino
 	docker push localhost:5000/datasino
 	@echo 'Pushing docker images (dockerhub)'
-	docker tag rixed/datasino:latest rixed/datasino:v$(VERSION)
 	docker push rixed/datasino:v$(VERSION)
 
 # Cleaning
