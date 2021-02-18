@@ -1,5 +1,5 @@
 
-# 1204 "README.adoc"
+# 1232 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1204 "README.adoc"
+# 1232 "README.adoc"
 
 
 exception Not_implemented of string
@@ -30,7 +30,7 @@ let docv_of_enum l =
       String.print oc n)
   ) l
 
-# 863 "README.adoc"
+# 864 "README.adoc"
 module Avg =
 struct
   type t =
@@ -71,13 +71,13 @@ struct
       String.print oc "n.a."
 end
 
-# 913 "README.adoc"
+# 914 "README.adoc"
 let (|||) = (||)
 
-# 1026 "README.adoc"
+# 1054 "README.adoc"
 let mins m = float_of_int (60 * m)
 
-# 1080 "README.adoc"
+# 1108 "README.adoc"
 let file_exists name =
   let open Unix in
   try
@@ -94,16 +94,16 @@ let tmp_name name =
     if file_exists tmp_name then retry (n + 1) else tmp_name in
   retry 1
 
-# 1210 "README.adoc"
+# 1238 "README.adoc"
 
 
-# 1054 "README.adoc"
+# 1082 "README.adoc"
 type opened_file =
   { fd : Unix.file_descr ;
     name : string ;
     opened_name : string }
 
-# 1067 "README.adoc"
+# 1095 "README.adoc"
 let open_file name =
   let open Unix in
   let opened_name =
@@ -111,24 +111,24 @@ let open_file name =
   { fd = openfile opened_name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640 ;
     name ; opened_name }
 
-# 1103 "README.adoc"
+# 1131 "README.adoc"
 let write_buffer file buffer =
   let bytes = DH.Pointer.contents buffer in
   let len = Bytes.length bytes in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
 
-# 1115 "README.adoc"
+# 1143 "README.adoc"
 let rotate_file file =
   let open Unix in
   Unix.close file.fd ;
   if file.opened_name <> file.name then
     Unix.rename file.opened_name file.name
 
-# 1211 "README.adoc"
+# 1239 "README.adoc"
 
 
-# 1129 "README.adoc"
+# 1157 "README.adoc"
 let kafka_err_string =
   let open Kafka in
   function
@@ -164,5 +164,5 @@ let kafka_err_string =
   | CONF_UNKNOWN -> "CONF_UNKNOWN"
   | CONF_INVALID -> "CONF_INVALID"
 
-# 1212 "README.adoc"
+# 1240 "README.adoc"
 

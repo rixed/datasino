@@ -1,5 +1,5 @@
 
-# 1177 "README.adoc"
+# 1205 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1177 "README.adoc"
+# 1205 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -54,7 +54,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1182 "README.adoc"
+# 1210 "README.adoc"
 
 
 # 79 "README.adoc"
@@ -186,14 +186,21 @@ let clickhouse_syntax =
   let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
   Arg.(value (flag i))
 
-# 966 "README.adoc"
+# 925 "README.adoc"
+let prefix =
+  let env = Term.env_info "PREFIX" in
+  let doc = "Any string to prefix the stdout logs with." in
+  let i = Arg.info ~doc ~env [ "prefix" ] in
+  Arg.(value (opt string "" i))
+
+# 994 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1183 "README.adoc"
+# 1211 "README.adoc"
 
 
 # 333 "README.adoc"
@@ -225,7 +232,10 @@ $ null
 $ quote
 $ clickhouse_syntax
 
-# 976 "README.adoc"
+# 935 "README.adoc"
+$ prefix
+
+# 1004 "README.adoc"
 $ extra_search_paths
 
 # 354 "README.adoc"
@@ -234,5 +244,5 @@ $ extra_search_paths
   in
   Term.eval start_cmd |> Term.exit
 
-# 1184 "README.adoc"
+# 1212 "README.adoc"
 

@@ -1,5 +1,5 @@
 
-# 1190 "README.adoc"
+# 1218 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,16 +12,16 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1190 "README.adoc"
+# 1218 "README.adoc"
 
 open Datasino_tools
 
 
-# 936 "README.adoc"
+# 964 "README.adoc"
 let gen_serialize_random_value : (DH.Pointer.t -> DH.Pointer.t) ref =
   ref (fun _buffer -> assert false)
 
-# 1193 "README.adoc"
+# 1221 "README.adoc"
 
 
 # 414 "README.adoc"
@@ -35,13 +35,13 @@ let main_loop serialize_random_value is_full output rate_limit buffer =
     loop buffer in
   loop buffer
 
-# 1194 "README.adoc"
+# 1222 "README.adoc"
 
 
 # 265 "README.adoc"
 let default_kafka_compression_codec = "inherit"
 
-# 1195 "README.adoc"
+# 1223 "README.adoc"
 
 
 # 302 "README.adoc"
@@ -66,7 +66,7 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
   if kafka_compression_level < -1 || kafka_compression_level > 12 then
     raise (Failure "--kafka-compression-level must be between -1 and 12")
 
-# 1196 "README.adoc"
+# 1224 "README.adoc"
 
 
 # 705 "README.adoc"
@@ -131,7 +131,7 @@ let output_to_kafka brokers topic partitions timeout wait_confirm
     send ()
     (* TODO: on exit, release all producers *)
 
-# 1197 "README.adoc"
+# 1225 "README.adoc"
 
 
 # 366 "README.adoc"
@@ -143,7 +143,10 @@ let start
 # 601 "README.adoc"
 separator null quote clickhouse_syntax
 
-# 982 "README.adoc"
+# 941 "README.adoc"
+prefix
+
+# 1010 "README.adoc"
 extra_search_paths
 
 # 370 "README.adoc"
@@ -281,7 +284,8 @@ let output buffer =
         Avg.update avg_1m now |||
         Avg.update avg_10s now in
       if display then
-        Printf.printf "Rates: 10s: %a, 1min: %a, 5min: %a, global: %a\n%!"
+        Printf.printf "%sRates: 10s: %a, 1min: %a, 5min: %a, global: %a\n%!"
+          prefix (* <2> *)
           Avg.print avg_10s
           Avg.print avg_1m
           Avg.print avg_5m
@@ -290,7 +294,7 @@ let output buffer =
     display_rates () ;
     rate_limit () in
 
-# 947 "README.adoc"
+# 975 "README.adoc"
   let compunit =
     DU.add_verbatim_definition compunit ~name:"registration"
                                ~dependencies:["serialize_random_value"]
@@ -300,14 +304,14 @@ let output buffer =
         "let registration = \
            Datasino_main.gen_serialize_random_value := serialize_random_value\n") in
 
-# 995 "README.adoc"
+# 1023 "README.adoc"
   let backend_mod = (module DessserBackEndOCaml : Dessser.BACKEND) in
   DessserDSTools.compile_and_load ~extra_search_paths backend_mod compunit ;
   let serialize_random_value = !gen_serialize_random_value in
 
-# 1010 "README.adoc"
+# 1038 "README.adoc"
   let buffer = DH.Pointer.of_buffer max_msg_size in
   main_loop serialize_random_value is_full output rate_limit buffer
 
-# 1198 "README.adoc"
+# 1226 "README.adoc"
 

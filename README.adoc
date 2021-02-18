@@ -825,9 +825,9 @@ sleep about once a second.
 ----
 
 While we are at it, we'd like to display periodically the past rates, in a
-+loadavg+ way, that is: the average over the last 1 minute, the average over
-the last 5 mins, and the total average. For this we need three counts, and a
-function being called every time +rate_limit+ is:
++loadavg+ way, that is: the average over the last 10 seconds, the average over
+the last 1 minute, the last 5 mins, and the total average. For this we need four
+counts, and a function being called every time +rate_limit+ is:
 
 .start function
 [source,ml]
@@ -845,7 +845,8 @@ function being called every time +rate_limit+ is:
         Avg.update avg_1m now |||
         Avg.update avg_10s now in
       if display then
-        Printf.printf "Rates: 10s: %a, 1min: %a, 5min: %a, global: %a\n%!"
+        Printf.printf "%sRates: 10s: %a, 1min: %a, 5min: %a, global: %a\n%!"
+          prefix (* <2> *)
           Avg.print avg_10s
           Avg.print avg_1m
           Avg.print avg_5m
@@ -913,7 +914,34 @@ shortcutting it is good enough to rename the operator:
 let (|||) = (||)
 ----
 
-All the required functions have been defined, but two of them still
+Notice also in <2> that an arbitrary +prefix+ was printed in front of each
+log line. This comes handy when running several instances of datasino in
+parallel to generate various streams of data, and can be set by the command line
+given:
+
+.command line arguments
+[source,ml]
+----
+let prefix =
+  let env = Term.env_info "PREFIX" in
+  let doc = "Any string to prefix the stdout logs with." in
+  let i = Arg.info ~doc ~env [ "prefix" ] in
+  Arg.(value (opt string "" i))
+----
+
+.extra command line arguments
+[source,ml]
+----
+$ prefix
+----
+
+.extra command line parameters
+[source,ml]
+----
+prefix
+----
+
+All the required functions have now been defined, but two of them still
 have to be actually compiled and dynamically loaded. Let's go down
 to this now.
 
