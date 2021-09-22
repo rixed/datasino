@@ -124,6 +124,14 @@ datasino: \
 	@echo 'Compiling datasino $@ (native)'
 	$(OCAMLOPT) $(OCAMLFLAGS) -I src -linkpkg -package '$(PACKAGES)' -package dynlink $^ -o $@
 
+README.annot:
+		src/datasino_config.annot \
+		src/datasino_tools.annot \
+		src/datasino_main.annot \
+		src/datasino_cli.annot
+	@echo 'Building main annot file'
+	cat $^ > $@
+
 # Installation
 
 install-bin: $(INSTALLED_BIN)
