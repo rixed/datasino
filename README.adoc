@@ -98,15 +98,15 @@ let mn_t =
         DessserTools.read_whole_file (String.lchop s)
       else
         s in
-    match DT.Parser.of_string ~any_format:true s with
+    match DessserParser.mn_of_string ~any_format:true s with
     | exception e ->
-        Pervasives.Error (`Msg (Printexc.to_string e))
-    | DT.Value mn ->
-        Pervasives.Ok mn
+        Stdlib.Error (`Msg (Printexc.to_string e))
+    | mn ->
+        Stdlib.Ok mn
     | _ ->
-        Pervasives.Error (`Msg "Outer type must be a value type.")
+        Stdlib.Error (`Msg "Outer type must be a value type.")
   and print fmt mn =
-    Format.fprintf fmt "%s" (DT.string_of_maybe_nullable mn)
+    Format.fprintf fmt "%s" (DT.mn_to_string mn)
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 ----
@@ -449,7 +449,7 @@ First, a compilation unit is created:
 .start function
 [source,ml]
 ----
-  let compunit = DU.make () in
+  let compunit = DU.make "datasino" in
 ----
 
 to which we can add identifiers and their definition:
@@ -458,7 +458,7 @@ to which we can add identifiers and their definition:
 [source,ml]
 ----
   let compunit, _, _ (* <1> *) =
-    DE.func0 (fun _l -> DL.random schema) |>
+    DE.Ops.func0 (fun _l -> DL.random schema) |>
     DU.add_identifier_of_expression compunit ~name:"random_value" in
 ----
 <1> +add_identifier_of_expression+ returns not only the new compilation unit
@@ -542,9 +542,12 @@ robust than elegant:
         let module Ser = DessserCsv.Ser in
         let module Serializer = DessserHeapValue.Serialize (Ser) in
         Serializer.serialize ?config:(csv_config ()) in
+  let compunit, ser_id, _ =
+    serialize ~with_fieldmask:false "t" schema compunit in
+  (* Rather have a function called "serialize": *)
   let compunit, _, _ =
-    DE.func2 DT.(Value schema) DT.DataPtr (fun _l v dst ->
-      serialize schema DE.Ops.copy_field v dst) |>
+    DE.Ops.func2 schema DT.ptr (fun v dst ->
+      DE.Ops.apply ser_id [ v ; dst ]) |>
     DU.add_identifier_of_expression compunit ~name:"serialize" in
 ----
 
@@ -618,12 +621,12 @@ accept only single characters). It is defined as:
 let better_char =
   let parse = function
     | "\\t" ->
-        Pervasives.Ok '\t'
+        Stdlib.Ok '\t'
     (* TODO: other special chars *)
     | s when String.length s = 1 ->
-        Pervasives.Ok s.[0]
+        Stdlib.Ok s.[0]
     | s ->
-        Pervasives.Error (`Msg (Printf.sprintf "Not a character: %S" s))
+        Stdlib.Error (`Msg (Printf.sprintf "Not a character: %S" s))
   and print fmt c =
     Format.fprintf fmt "%C" c
   in
@@ -642,7 +645,7 @@ Let's therefore generate this +serialize_random_value+ function from the two abo
 [source,ml]
 ----
   let compunit, _, _ =
-    DE.func1 DT.DataPtr (fun _l dst ->
+    DE.Ops.func1 DT.ptr (fun dst ->
       let open DE.Ops in
       let v (* <1> *) = apply (identifier "random_value") [] in
       apply (identifier "serialize") [ v ; dst ]) |>
@@ -761,7 +764,7 @@ let output_to_kafka brokers topic partitions timeout wait_confirm
                    else Array.of_list partitions in
   let next_partition = ref 0 in
   fun buffer ->
-    let bytes = DH.Pointer.contents buffer in
+    let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
     let str = Bytes.unsafe_to_string bytes in (* producer will not keep a ref on this *)
     let rec send () =
       try
@@ -983,10 +986,11 @@ a bit like the +asm+ directive of meta-programming:
     DU.add_verbatim_definition compunit ~name:"registration"
                                ~dependencies:["serialize_random_value"]
                                ~backend:DessserBackEndOCaml.id
-                               (fun oc _printer ->
-      String.print oc
-        "let registration = \
-           Datasino_main.gen_serialize_random_value := serialize_random_value\n") in
+                               (fun ~recurs ~rec_seq oc _printer ->
+      Printf.fprintf oc
+        "%s registration = \
+           Datasino_main.gen_serialize_random_value := serialize_random_value\n"
+        (DessserBackEndOCaml.let_of ~recurs ~rec_seq)) in
 ----
 
 The dessser library has a function called +compile_and_load+ that compiles a
@@ -1056,15 +1060,17 @@ even more CPU:
       if !allowance > 1. then (
         allowance := !allowance -. 1. ;
         (* Copy the last saved value into the passed in buffer: *)
-        Bytes.blit last_value 0 buffer.DH.Pointer.bytes buffer.start !last_value_len ;
+        let bytes = (fst buffer).DH.Pointer.impl.to_string () |> Bytes.unsafe_of_string in
+        Bytes.blit last_value 0 bytes (snd buffer) !last_value_len ;
         DH.Pointer.skip buffer !last_value_len
       ) else (
-        let start = buffer.start in
+        let start = snd buffer in
         let buffer = serialize_random_value buffer in
         if stutter > 0. then (
           (* Copy the new value in last_value: *)
-          let len = buffer.start - start in
-          Bytes.blit buffer.bytes start last_value 0 len ;
+          let len = (snd buffer) - start in
+          let bytes = (fst buffer).DH.Pointer.impl.to_string () |> Bytes.unsafe_of_string in
+          Bytes.blit bytes start last_value 0 len ;
           last_value_len := len ;
           allowance := !allowance +. stutter
         ) (* else don't bother *) ;
@@ -1080,7 +1086,7 @@ be called:
 .start function
 [source,ml]
 ----
-  let buffer = DH.Pointer.of_buffer max_msg_size in
+  let buffer = DH.pointer_of_buffer max_msg_size in
   main_loop serialize_random_value is_full output rate_limit buffer
 ----
 
@@ -1174,7 +1180,7 @@ its sole job is to write its content into that file:
 [source,ml]
 ----
 let write_buffer file buffer =
-  let bytes = DH.Pointer.contents buffer in
+  let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
   let len = Bytes.length bytes in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
