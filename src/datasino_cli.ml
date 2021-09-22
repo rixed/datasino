@@ -1,5 +1,5 @@
 
-# 1256 "README.adoc"
+# 1254 "README.adoc"
 
 # 29 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1256 "README.adoc"
+# 1254 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -32,14 +32,12 @@ let mn_t =
         Stdlib.Error (`Msg (Printexc.to_string e))
     | mn ->
         Stdlib.Ok mn
-    | _ ->
-        Stdlib.Error (`Msg "Outer type must be a value type.")
   and print fmt mn =
     Format.fprintf fmt "%s" (DT.mn_to_string mn)
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 
-# 621 "README.adoc"
+# 619 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -54,7 +52,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1261 "README.adoc"
+# 1259 "README.adoc"
 
 
 # 81 "README.adoc"
@@ -64,21 +62,21 @@ let schema =
   let i = Arg.info ~doc ~env ~docv:"TYPE" [ "s" ; "schema" ] in
   Arg.(required (opt (some mn_t) None i))
 
-# 126 "README.adoc"
+# 124 "README.adoc"
 let rate_limit =
   let env = Term.env_info "RATE_LIMIT" in
   let doc = "Maximum number of generated values per seconds." in
   let i = Arg.info ~doc ~env [ "r" ; "rate-limit" ] in
   Arg.(value (opt float 0. i))
 
-# 146 "README.adoc"
+# 144 "README.adoc"
 let stutter =
   let env = Term.env_info "STUTTER" in
   let doc = "Reuse each generated value that many time." in
   let i = Arg.info ~doc ~env [ "stutter" ] in
   Arg.(value (opt float 0. i))
 
-# 163 "README.adoc"
+# 161 "README.adoc"
 let encoding =
   let encodings =
     [ "null", Null ; (* <1> *)
@@ -92,7 +90,7 @@ let encoding =
   let i = Arg.info ~doc ~docv ~env [ "e" ; "encoding" ] in
   Arg.(value (opt (enum encodings) SExpr i))
 
-# 208 "README.adoc"
+# 206 "README.adoc"
 let output_file =
   let doc = "File name where to append the generated values." in
   let i = Arg.info ~doc [ "o" ; "output-file" ] in
@@ -146,7 +144,7 @@ let kafka_compression_level =
   let i = Arg.info ~doc ~env [ "kafka-compression-level" ] in
   Arg.(value (opt int ~-1 i))
 
-# 277 "README.adoc"
+# 275 "README.adoc"
 let max_size =
   let env = Term.env_info "MAX_SIZE" in
   let doc = "Rotate the current output file/kafka message after that size \
@@ -161,7 +159,7 @@ let max_count =
   let i = Arg.info ~doc ~env [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 574 "README.adoc"
+# 572 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -186,24 +184,24 @@ let clickhouse_syntax =
   let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
   Arg.(value (flag i))
 
-# 935 "README.adoc"
+# 933 "README.adoc"
 let prefix =
   let env = Term.env_info "PREFIX" in
   let doc = "Any string to prefix the stdout logs with." in
   let i = Arg.info ~doc ~env [ "prefix" ] in
   Arg.(value (opt string "" i))
 
-# 1005 "README.adoc"
+# 1003 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1262 "README.adoc"
+# 1260 "README.adoc"
 
 
-# 335 "README.adoc"
+# 333 "README.adoc"
 let () =
   Printf.printf "Datasino v%s\n%!" version ;
   let start_cmd =
@@ -226,23 +224,23 @@ let () =
         $ max_size
         $ max_count
         
-# 602 "README.adoc"
+# 600 "README.adoc"
 $ separator
 $ null
 $ quote
 $ clickhouse_syntax
 
-# 945 "README.adoc"
+# 943 "README.adoc"
 $ prefix
 
-# 1015 "README.adoc"
+# 1013 "README.adoc"
 $ extra_search_paths
 
-# 356 "README.adoc"
+# 354 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in
   Term.eval start_cmd |> Term.exit
 
-# 1263 "README.adoc"
+# 1261 "README.adoc"
 

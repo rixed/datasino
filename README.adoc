@@ -103,8 +103,6 @@ let mn_t =
         Stdlib.Error (`Msg (Printexc.to_string e))
     | mn ->
         Stdlib.Ok mn
-    | _ ->
-        Stdlib.Error (`Msg "Outer type must be a value type.")
   and print fmt mn =
     Format.fprintf fmt "%s" (DT.mn_to_string mn)
   in
