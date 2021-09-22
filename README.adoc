@@ -12,7 +12,7 @@ v0.1, 2021-02-05
 
 Datasino is a simple tool. Given a data type, a flow rate, an encoding and a
 target sink, it generates random values of that type, at that rate, and send
-them it encoded as instructed to that sink.
+them encoded as instructed to that sink.
 
 All those required inputs will be read from the command line with
 https://erratique.ch/software/cmdliner[cmdliner].
@@ -46,7 +46,7 @@ are used frequently.
 
 |+t+|type
 |+thing_t+|the type of +thing+
-|+mn+|maybe nullable
+|+mn+|a +maybe_nullable+ type
 |===
 
 == Inputs from the command line
@@ -57,12 +57,14 @@ which being the data type, or +schema+.
 === Schema
 
 For convenience let's accept data type specification both in dessser internal
-format or ClickHouse somewhat informal "NamesAndTypes" format. The dessser
-library has parser for both formats, and a parser that can understand any of them.
+format or ClickHouse somewhat informal
+https://clickhouse.tech/codebrowser/html_report/ClickHouse/src/Core/NamesAndTypes.h.html[NamesAndTypes]
+format. The dessser library has parser for both formats, and a parser that can
+understand any of them.
 
-And let's accept either inline values or values stored in a file, using the
+Also, let's accept either inline values or values stored in a file, using the
 '@' character as an indication that the command line value is actually a
-file name, as curl does.
+file name, as https://curl.se/[curl] does.
 
 By connecting cmdliner parser and pretty-printer with dessser ones, we can
 obtain directly dessser representations of data types from cmdliner.
@@ -70,7 +72,7 @@ obtain directly dessser representations of data types from cmdliner.
 Note that dessser uses a hierarchy of types: value-types are all types that can
 be serialized, then on top of those maybe-nullable are value-types that can or
 cannot be null, and then types in general are those maybe-nullable types and
-some additional types aimed at writing low level code required to implement
+some additional ones aimed at writing low level code required to implement
 serializers. We are only interested by maybe-nullable types for the schema.
 
 .command line arguments
@@ -113,9 +115,9 @@ let mn_t =
 === Rate limit
 
 Optionally we might want to control the speed at which data is generated
-(by default datasino will just go at full speed).
+(by default datasino will just spin as fast as possible).
 
-To limit the speed is easy, and a single +rate_limit+ will do (using negative
+To limit the speed is trivial: a single +rate_limit+ will do (using negative
 or zero values to mean "no limit").
 
 .command line arguments
@@ -132,10 +134,11 @@ It is then easy enough for datasino to pause in between messages to meet this
 restriction.
 
 But making data generation faster is less trivial, as randomly generating
-data takes some time. But we could easily reuse previously generated values
-and send them several times in a row, to artificially scale up the flow rate
-a bit like bad cameras scales up image resolution by interpolating pixels,
-except datasino will not even bother interpolating.
+data takes some time. The simplest way to increase throughput beyond that is to
+reuse previously generated values and send them several times in a row, to
+artificially inflate the flow rate a bit like bad cameras inflate image
+resolution by interpolating pixels, except datasino will not even bother
+interpolating.
 
 .command line arguments
 [source,ml]
@@ -152,8 +155,7 @@ Using again a floating value here gives more control on the actual data rate.
 === Encoding
 
 Dessser generates values as normal heap allocated values and can then
-serialize those onto various possible encoding, which must then be chosen
-next.
+serialize those onto various possible encoding. Let's now choose that encoding.
 
 .command line arguments
 [source,ml]
@@ -374,9 +376,9 @@ let start
     kafka_compression_codec kafka_compression_level ;
 ----
 
-For simplicity datasino is going to append values in a single buffer once,
-when large enough, will be handed over to some output function. The main
-loop will therefore look like:
+For simplicity datasino is going to append values in a single buffer which,
+once large enough, will eventually be handed over to some output function. The
+main loop will therefore look like:
 
 .main loop, take 1
 [source,ml]
@@ -403,10 +405,15 @@ The +start+ function must thus prepare five functions:
 4. one that sends the buffer to the desired target (+output+).
 4. and finally, one that wait some time to meet the rate limit (+rate_limit+).
 
-The issue on the above code is the variable +v+: it's type is +schema+, which is known only at runtime.
-That's why both +random_value+ and +serialize+ have to be generated at runtime.
-To make things simpler, we will therefore also generate a function that directly generate and serialize a random value, so that datasino
-program itself can be compiled without knowing the type of +v+. This amount to changing the above main loop into:
+Alas, the above code cannot be type checked! Indeed, the variable +v+ has type
++schema+, which is known only at runtime.  That's why the functions
++random_value+ (which returns a value of unknown type) and +serialize+ (which
+accept that value of unknown type) have to be generated at runtime.
+
+A way around this is to combine both +random_value+ and +serialize+ into a
+single function that directly generates a random value and serializes it, so
+that datasino program itself can be compiled without knowing the actual type of
++v+. This changes the above main loop into:
 
 .main loop
 [source,ml]
@@ -627,9 +634,9 @@ let better_char =
 
 Remember we said we want to manipulate from datasino only the combination of
 serialize applied to a random_value, so that the actual type of the value does
-not bubble up in compile time.
+not bubble up to compile time.
 
-This is easy enough to generate this +serialize_random_value+ function from the two above:
+Let's therefore generate this +serialize_random_value+ function from the two above:
 
 .start function
 [source,ml]
@@ -646,7 +653,7 @@ Notice that in <1> the type of v is a compile time dessser expression, not a
 value of the runtime type +schema+, so we are in the clear.
 
 We will see later, when it comes to runtime compilation, how datasino will get
-a handle on that function.
+a handle on the actual function.
 
 === Knowing when to send
 
