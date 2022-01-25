@@ -12,3 +12,4 @@ opam
 *.o
 META
 src/datasino_config.ml
+README.html

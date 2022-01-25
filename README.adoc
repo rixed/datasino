@@ -1,11 +1,182 @@
 // vim:filetype=asciidoc expandtab spell spelllang=en ts=2 sw=2
-= Datasino: Random Data Generator for arbitrary data type
+= Datasino: Random Data Generator for arbitrary data types
 rixed@happyleptic.org
 :toc:
 :numbered:
 :icons:
 :lang: en
 :encoding: utf-8
+
+== TL;DR
+
+=== Examples
+
+[source,shell]
+----
+% docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{thing:[foo|bar|baz string]?[]; thung:string[2]}' --encoding s-expression
+(0 () ("hcmdj" "ffhbm"))
+(2 (null null) ("xdqyt" "rwsnv"))
+(3 ((0 ) (1 ) null) ("fwfvw" "sxcdo"))
+(3 (null null null) ("tfirz" "svqhy"))
+
+% docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{name:string; age:u8; roles:string[]; present:bool?}' --encoding csv
+kbizh,44,1,rsbrx,\N
+egjrr,62,0,,T
+vehmj,84,2,zvqya,jefqu,F
+ddrbq,41,3,fvohq,sxfqq,rvdth,\N
+
+% docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{name:string; sex:[male|female]; parent:this?}' --encoding json
+{"name":"kbizh","sex":"male","parent":null}
+{"name":"sbrxo","sex":"male","parent":{"name":"gjrrk","sex":"female","parent":{"name":"bamzi","sex":"female","parent":{"name":"nonng","sex":"female","parent":null}}}}
+{"name":"rumes","sex":"male","parent":{"name":"rteau","sex":"female","parent":null}}
+{"name":"mghcm","sex":"female","parent":{"name":"hbmgc","sex":"female","parent":{"name":"nkjlo","sex":"female","parent":{"name":"hgzoq","sex":"female","parent":{"name":"blnst","sex":"male","parent":{"name":"wjfxf","sex":"female","parent":{"name":"wnklm","sex":"female","parent":null}}}}}}}
+```
+----
+
+=== Supported encodings
+
+- JSON
+
+- CSV (some types are not serializable)
+
+- S-Expressions
+
+- ClickHouse (row-binary)
+
+=== Supported types
+
+- boolean (+bool+)
+
+- characters (+char+, no fancy UTF-8 just a byte)
+
+- float (+float+ for 64bits floating point numbers)
+
+- string (+string+, just bytes)
+
+- unsigned integers (+u8+, +u16+, +u24+, +u32+, +u40+, +u48+, +u56+, +u64+ and +u128+)
+
+- signed integers (+i8+ to +i128+)
+
+- vectors (+type[N]+ for +N+ values of arbitrary type +type+. Example: +string[2]+ for a pair of strings)
+
+- arrays (+type[]+, like vectors but of varying dimension. Example: +string[2][]+ for an array of pairs of strings)
+
+- tuples (+(type1;type2;type3;...)+ where +type1+, +type2+, +type3+ etc are arbitrary types. Example: +(string;(bool;bool);i32)+ for a triplet of a string, a pair of bools, and an integer)
+
+- records (+{ name1: type1; name2: type2; ... }+ like a tuple with named fields. Example: +{ names:string[]; age:u8 }+)
+
+- sum types (+[ name1 type1 | name2 type2 | ... ]+ where +type1+, +type2+ etc are optional arbitrary types. Example: +[black|white|rgb { red:u8; green:u8; blue:u8 }]+).
+
+If followed by a question mark (+?+) a type is nullable. Example: +u16?[3]+ is a vector of 3 possibly null unsigned integers.
+
+The special keyword +this+ corresponds to the current type and can be used to build recursive values (beware your stack!). Example: +{ species:string; subspecies:this[] }+.
+
+=== Supported outputs
+
+- Plain file
+
+- Kafka
+
+=== Command line options
+
+.General purpose options
+[source,shell]
+----
+       --help[=FMT] (default=auto)
+           Show this help in format FMT. The value FMT must be one of `auto',
+           `pager', `groff' or `plain'. With `auto', the format is `pager` or
+           `plain' whenever the TERM env var is `dumb' or undefined.
+
+       -c VAL, --count=VAL (absent=-1 or COUNT env)
+           If >= 0, exit after than many values has been written.
+
+       -q, --quiet (absent QUIET env)
+           Do not print actual output rate on stdout.
+
+       -r VAL, --rate-limit=VAL (absent=0. or RATE_LIMIT env)
+           Maximum number of generated values per seconds.
+
+       --stutter=VAL (absent=0. or STUTTER env)
+           Reuse each generated value that many time.
+
+       --version
+           Show version information.
+----
+
+.Configuring the output values
+[source,shell]
+----
+       -s TYPE, --schema=TYPE (required)
+           The type of the data to be generated (inline or @file).
+
+       -e null|row-binary|s-expression|csv|json,
+       --encoding=null|ringbuf|row-binary|s-expression|csv|json
+       (absent=s-expression or ENCODING env)
+           Encoding format for output.
+
+       --with-newlines (absent JSON_NEWLINES env)
+           Append a newline after every JSON/S-expression value.
+----
+
+.Configuring the sink
+[source,shell]
+----
+       --discard
+           Discard generated values.
+
+
+       -o VAL, --output-file=VAL
+           File name where to append the generated values.
+
+       --max-count=VAL (absent=0 or MAX_COUNT env)
+           Rotate the current output file/kafka message after that number of
+           values
+
+       --max-size=VAL (absent=0 or MAX_SIZE env)
+           Rotate the current output file/kafka message after that size (in
+           bytes)
+
+       --kafka-brokers=VAL (absent KAFKA_BROKERS env)
+           Initial Kafka brokers.
+
+       --kafka-compression-codec=VAL (absent=inherit or
+       KAFKA_COMPRESSION_CODEC env)
+           Compression codec to use.
+
+       --kafka-compression-level=VAL (absent=-1 or KAFKA_COMPRESSION_LEVEL
+       env)
+           Compression level to use (-1..12, -1 being default level).
+
+       --kafka-timeout=VAL (absent=0. or KAFKA_TIMEOUT env)
+           Timeout when sending a Kafka message.
+
+       --kafka-topic=VAL (absent KAFKA_TOPIC env)
+           Kafka topic to publish to.
+
+       --kafka-wait-confirmation (absent KAFKA_WAIT_CONFIRMATION env)
+           Wait for delivery after sending each message.
+
+       --partitions=VAL (absent KAFKA_PARTITIONS env)
+           Kafka partitions where to send messages to (in a round-robbin
+           maner).
+
+       --csv-clickhouse-syntax (absent CSV_CLICKHOUSE_SYNTAX env)
+           Should CSV encoder uses clickhouse syntax for compound types.
+
+       --csv-null=VAL (absent= or CSV_NULL env)
+           String to use as NULL.
+
+       --csv-quote=VAL (absent CSV_QUOTE env)
+           Character to use to quote strings.
+
+       --csv-separator=VAL (absent=',' or CSV_SEPARATOR env)
+           Character to use as a separator.
+----
+
+See +datasino --help+ for more.
+
+Here ends the TL;DR section.
+What follows is the source code of datasino, in literate programming style.
 
 == Overview
 
@@ -478,13 +649,26 @@ First, a compilation unit is created:
   let compunit = DU.make "datasino" in
 ----
 
-to which we can add identifiers and their definition:
+Before generating the random value generator, it's best to declare that the
+type named "t" (the default name for a type in dessser, which the keyword
++this+ will refer to) is in fact out +schama+. With this, the random value
+generator could make sense of the +this+ keyword and calls itself recursively
+to generate recursive values:
+
+.start function
+[source,ml]
+----
+  DT.add_type_as "t" schema.DT.typ ;
+----
+
+With this in place the random value generator can now be added into the
+compilation unit:
 
 .start function
 [source,ml]
 ----
   let compunit, _, _ (* <1> *) =
-    DE.Ops.func0 (fun _l -> DL.random schema) |>
+    DL.func_random schema |>
     DU.add_identifier_of_expression compunit ~name:"random_value" in
 ----
 <1> +add_identifier_of_expression+ returns not only the new compilation unit
@@ -512,8 +696,8 @@ signature is almost what is needed:
 [source,ml]
 ----
 val serialize : ?config:Ser.config (* <1> *) ->
-                ?with_fieldmask:bool <2> ->
-                ?type_name:string <3> ->
+                ?with_fieldmask:bool (* <2> *) ->
+                ?type_name:string (* <3> *) ->
                 T.mn (* <4> *) ->
                 U.t (* <5> *) ->
                 U.t * E.t * string (* <6> *)

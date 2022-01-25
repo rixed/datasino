@@ -1,7 +1,7 @@
 
-# 1298 "README.adoc"
+# 1346 "README.adoc"
 
-# 28 "README.adoc"
+# 47 "README.adoc"
 open Batteries
 open Cmdliner
 
@@ -12,14 +12,14 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1298 "README.adoc"
+# 1346 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
 open Datasino_main
 
 
-# 87 "README.adoc"
+# 106 "README.adoc"
 let mn_t =
   let parse s =
     let s =
@@ -37,7 +37,7 @@ let mn_t =
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 
-# 662 "README.adoc"
+# 710 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -52,38 +52,38 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1332 "README.adoc"
+# 1351 "README.adoc"
 
 
-# 87 "README.adoc"
+# 93 "README.adoc"
 let schema =
   let env = Term.env_info "SCHEMA" in
   let doc = "The type of the data to be generated (inline or @file)." in
   let i = Arg.info ~doc ~env ~docv:"TYPE" [ "s" ; "schema" ] in
   Arg.(required (opt (some mn_t) None i))
 
-# 132 "README.adoc"
+# 138 "README.adoc"
 let rate_limit =
   let env = Term.env_info "RATE_LIMIT" in
   let doc = "Maximum number of generated values per seconds." in
   let i = Arg.info ~doc ~env [ "r" ; "rate-limit" ] in
   Arg.(value (opt float 0. i))
 
-# 152 "README.adoc"
+# 158 "README.adoc"
 let stutter =
   let env = Term.env_info "STUTTER" in
   let doc = "Reuse each generated value that many time." in
   let i = Arg.info ~doc ~env [ "stutter" ] in
   Arg.(value (opt float 0. i))
 
-# 169 "README.adoc"
+# 175 "README.adoc"
 let count =
   let env = Term.env_info "COUNT" in
   let doc = "If >= 0, exit after than many values has been written." in
   let i = Arg.info ~doc ~env [ "c" ; "count" ] in
   Arg.(value (opt int ~-1 i))
 
-# 184 "README.adoc"
+# 190 "README.adoc"
 let encoding =
   let encodings =
     [ "null", Null ; (* <1> *)
@@ -98,7 +98,7 @@ let encoding =
   let i = Arg.info ~doc ~docv ~env [ "e" ; "encoding" ] in
   Arg.(value (opt (enum encodings) SExpr i))
 
-# 230 "README.adoc"
+# 236 "README.adoc"
 let output_file =
   let doc = "File name where to append the generated values." in
   let i = Arg.info ~doc [ "o" ; "output-file" ] in
@@ -152,7 +152,7 @@ let kafka_compression_level =
   let i = Arg.info ~doc ~env [ "kafka-compression-level" ] in
   Arg.(value (opt int ~-1 i))
 
-# 299 "README.adoc"
+# 305 "README.adoc"
 let max_size =
   let env = Term.env_info "MAX_SIZE" in
   let doc = "Rotate the current output file/kafka message after that size \
@@ -167,14 +167,14 @@ let max_count =
   let i = Arg.info ~doc ~env [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 354 "README.adoc"
+# 360 "README.adoc"
 let quiet =
   let env = Term.env_info "QUIET" in
   let doc = "Do not print actual output rate on stdout." in
   let i = Arg.info ~doc ~env [ "q" ; "quiet" ] in
   Arg.(value (flag i))
 
-# 637 "README.adoc"
+# 656 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -205,24 +205,24 @@ let with_newlines =
   let i = Arg.info ~doc ~env [ "with-newlines" ] in
   Arg.(value (flag i))
 
-# 1007 "README.adoc"
+# 1026 "README.adoc"
 let prefix =
   let env = Term.env_info "PREFIX" in
   let doc = "Any string to prefix the stdout logs with." in
   let i = Arg.info ~doc ~env [ "prefix" ] in
   Arg.(value (opt string "" i))
 
-# 1077 "README.adoc"
+# 1096 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1333 "README.adoc"
+# 1352 "README.adoc"
 
 
-# 369 "README.adoc"
+# 375 "README.adoc"
 let () =
   let start_cmd =
     let doc = "Datasino - random data generator" in
@@ -246,24 +246,24 @@ let () =
         $ max_size
         $ max_count
         
-# 671 "README.adoc"
+# 690 "README.adoc"
 $ separator
 $ null
 $ quote
 $ clickhouse_syntax
 $ with_newlines
 
-# 1017 "README.adoc"
+# 1036 "README.adoc"
 $ prefix
 
-# 1087 "README.adoc"
+# 1106 "README.adoc"
 $ extra_search_paths
 
-# 391 "README.adoc"
+# 397 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in
   Term.eval start_cmd |> Term.exit
 
-# 1334 "README.adoc"
+# 1353 "README.adoc"
 
