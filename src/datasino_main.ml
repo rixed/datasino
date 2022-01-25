@@ -25,7 +25,7 @@ let gen_serialize_random_value : (DH.Pointer.t -> DH.Pointer.t) ref =
 # 1315 "README.adoc"
 
 
-# 433 "README.adoc"
+# 431 "README.adoc"
 let main_loop serialize_random_value is_full output rate_limit buffer =
   let rec loop buffer =
     let buffer = serialize_random_value buffer in
@@ -60,8 +60,6 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
      use_file && use_kafka ||
      use_kafka && discard then
     raise (Failure "More than one target is configured") ;
-  if not (use_file || use_kafka || discard) then
-    raise (Failure "No target configured") ;
   if mention_kafka && not use_kafka then
     raise (Failure "kafka options given but kafka is no the target?") ;
   if kafka_compression_level < -1 || kafka_compression_level > 12 then
@@ -135,13 +133,13 @@ let output_to_kafka quiet brokers topic partitions timeout wait_confirm
 # 1319 "README.adoc"
 
 
-# 379 "README.adoc"
+# 377 "README.adoc"
 let start
       quiet schema rate_limit stutter encoding output_file discard
       kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
       kafka_compression_codec kafka_compression_level
       max_size max_count 
-# 654 "README.adoc"
+# 652 "README.adoc"
 separator null quote clickhouse_syntax with_newlines
 
 # 994 "README.adoc"
@@ -150,7 +148,7 @@ prefix
 # 1064 "README.adoc"
 extra_search_paths
 
-# 383 "README.adoc"
+# 381 "README.adoc"
  =
   if not quiet then Printf.printf "Datasino v%s\n%!" version ;
   check_command_line
@@ -158,17 +156,17 @@ extra_search_paths
     kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
     kafka_compression_codec kafka_compression_level ;
 
-# 464 "README.adoc"
+# 462 "README.adoc"
   let compunit = DU.make "datasino" in
 
-# 472 "README.adoc"
+# 470 "README.adoc"
   let compunit, _, _ (* <1> *) =
     DE.Ops.func0 (fun _l -> DL.random schema) |>
     DU.add_identifier_of_expression compunit ~name:"random_value" in
 
-# 549 "README.adoc"
+# 547 "README.adoc"
   
-# 591 "README.adoc"
+# 589 "README.adoc"
 let null_config () = None
 and ringbuf_config () = None
 and rowbinary_config () = None
@@ -182,7 +180,7 @@ and json_config () =
   Some { DessserJson.default_config with
            newline = if with_newlines then Some '\n' else None } in
 
-# 549 "README.adoc"
+# 547 "README.adoc"
 
   let serialize =
     match encoding with
@@ -218,7 +216,7 @@ and json_config () =
       DE.Ops.apply ser_id [ v ; dst ]) |>
     DU.add_identifier_of_expression compunit ~name:"serialize" in
 
-# 690 "README.adoc"
+# 688 "README.adoc"
   let compunit, _, _ =
     DE.Ops.func1 DT.ptr (fun dst ->
       let open DE.Ops in
@@ -226,7 +224,7 @@ and json_config () =
       apply (identifier "serialize") [ v ; dst ]) |>
     DU.add_identifier_of_expression compunit ~name:"serialize_random_value" in
 
-# 713 "README.adoc"
+# 711 "README.adoc"
   let is_full =
     if max_count > 0 then
       let count = ref 0 in
@@ -240,19 +238,21 @@ and json_config () =
       fun _buffer ->
         true in
 
-# 738 "README.adoc"
+# 736 "README.adoc"
 let max_msg_size = (* <1> *)
   if max_size > 0 then max_size + 10_000
   else 10_000_000 in
 let output =
-  if output_file <> "" then
-    output_to_file output_file max_count max_size
-  else if discard then
+  if discard then
     ignore
-  else
+  else if kafka_brokers <> "" then
     output_to_kafka quiet kafka_brokers kafka_topic kafka_partitions kafka_timeout
                     kafka_wait_confirm kafka_compression_codec kafka_compression_level
                     max_msg_size
+  else if output_file <> "" then
+    output_to_file output_file max_count max_size
+  else (* output to stdout by default *)
+    output_to_file "/dev/stdout" max_count max_size
   in
 
 # 836 "README.adoc"

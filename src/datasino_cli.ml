@@ -37,7 +37,7 @@ let mn_t =
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 
-# 664 "README.adoc"
+# 662 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -160,14 +160,14 @@ let max_count =
   let i = Arg.info ~doc ~env [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 330 "README.adoc"
+# 328 "README.adoc"
 let quiet =
   let env = Term.env_info "DATASINO_QUIET" in
   let doc = "Do not print actual output rate on stdout." in
   let i = Arg.info ~doc ~env [ "q" ; "quiet" ] in
   Arg.(value (flag i))
 
-# 610 "README.adoc"
+# 608 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -215,7 +215,7 @@ let extra_search_paths =
 # 1304 "README.adoc"
 
 
-# 345 "README.adoc"
+# 343 "README.adoc"
 let () =
   let start_cmd =
     let doc = "Datasino - random data generator" in
@@ -238,7 +238,7 @@ let () =
         $ max_size
         $ max_count
         
-# 644 "README.adoc"
+# 642 "README.adoc"
 $ separator
 $ null
 $ quote
@@ -251,7 +251,7 @@ $ prefix
 # 1058 "README.adoc"
 $ extra_search_paths
 
-# 366 "README.adoc"
+# 364 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in

@@ -311,8 +311,6 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
      use_file && use_kafka ||
      use_kafka && discard then
     raise (Failure "More than one target is configured") ;
-  if not (use_file || use_kafka || discard) then
-    raise (Failure "No target configured") ;
   if mention_kafka && not use_kafka then
     raise (Failure "kafka options given but kafka is no the target?") ;
   if kafka_compression_level < -1 || kafka_compression_level > 12 then
@@ -739,14 +737,16 @@ let max_msg_size = (* <1> *)
   if max_size > 0 then max_size + 10_000
   else 10_000_000 in
 let output =
-  if output_file <> "" then
-    output_to_file output_file max_count max_size
-  else if discard then
+  if discard then
     ignore
-  else
+  else if kafka_brokers <> "" then
     output_to_kafka quiet kafka_brokers kafka_topic kafka_partitions kafka_timeout
                     kafka_wait_confirm kafka_compression_codec kafka_compression_level
                     max_msg_size
+  else if output_file <> "" then
+    output_to_file output_file max_count max_size
+  else (* output to stdout by default *)
+    output_to_file "/dev/stdout" max_count max_size
   in
 ----
 
