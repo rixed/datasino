@@ -39,7 +39,6 @@ RUN opam switch install --yes datasino 4.09.0+flambda
 RUN opam repo add --set-default ocalme \
       git://github.com/rixed/ocalme-opam-repository.git
 RUN opam repo priority ocalme 1
-RUN echo olalalalalalalalala
 RUN opam update
 
 # Install datasino

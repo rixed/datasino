@@ -1,7 +1,6 @@
 // vim:filetype=asciidoc expandtab spell spelllang=en ts=2 sw=2
-= Datasino: Random Data Generator of arbitrary type
+= Datasino: Random Data Generator for arbitrary data type
 rixed@happyleptic.org
-v0.1, 2021-02-05
 :toc:
 :numbered:
 :icons:
@@ -10,9 +9,9 @@ v0.1, 2021-02-05
 
 == Overview
 
-Datasino is a simple tool. Given a data type, a flow rate, an encoding and a
-target sink, it generates random values of that type, at that rate, and send
-them encoded as instructed to that sink.
+Datasino is a simple tool. Given a _data_type_, a _flow_rate_, an _encoding_
+and a target _sink_, it generates random values of that type, at that rate, and
+send them encoded as instructed to that sink.
 
 All those required inputs will be read from the command line with
 https://erratique.ch/software/cmdliner[cmdliner].
@@ -44,7 +43,7 @@ are used frequently.
 |===
 |shorthand|for
 
-|+t+|type
+|+t+|some type
 |+thing_t+|the type of +thing+
 |+mn+|a +maybe_nullable+ type
 |===
@@ -59,21 +58,15 @@ which being the data type, or +schema+.
 For convenience let's accept data type specification both in dessser internal
 format or ClickHouse somewhat informal
 https://clickhouse.tech/codebrowser/html_report/ClickHouse/src/Core/NamesAndTypes.h.html[NamesAndTypes]
-format. The dessser library has parser for both formats, and a parser that can
-understand any of them.
+format. The dessser library has parser for both formats, as well as a parser
+that accepts any of the two.
 
-Also, let's accept either inline values or values stored in a file, using the
-'@' character as an indication that the command line value is actually a
-file name, as https://curl.se/[curl] does.
+Also, let's accept either inline schemas or schemas stored in a file, using the
+'@' character as an indication that the command line value is actually a file
+name, as https://curl.se/[curl] does.
 
 By connecting cmdliner parser and pretty-printer with dessser ones, we can
 obtain directly dessser representations of data types from cmdliner.
-
-Note that dessser uses a hierarchy of types: value-types are all types that can
-be serialized, then on top of those maybe-nullable are value-types that can or
-cannot be null, and then types in general are those maybe-nullable types and
-some additional ones aimed at writing low level code required to implement
-serializers. We are only interested by maybe-nullable types for the schema.
 
 .command line arguments
 [source,ml]
@@ -98,7 +91,7 @@ let mn_t =
         DessserTools.read_whole_file (String.lchop s)
       else
         s in
-    match DessserParser.mn_of_string ~any_format:true s with
+    match DessserParser.mn_of_string ~any_format:true (* <1> *) s with
     | exception e ->
         Stdlib.Error (`Msg (Printexc.to_string e))
     | mn ->
@@ -109,6 +102,8 @@ let mn_t =
   Arg.conv ~docv:"TYPE" (parse, print)
 ----
 
+<1> This is what makes dessser parser accepts both ClickHouse and its own
+format to specify the schema.
 
 === Rate limit
 
@@ -148,7 +143,9 @@ let stutter =
   Arg.(value (opt float 0. i))
 ----
 
-Using again a floating value here gives more control on the actual data rate.
+Using again a floating value here gives more control on the actual data rate
+(obviously each repetition will occur an integral number of times, but the
+average need not be an integer).
 
 === Encoding
 
@@ -164,7 +161,8 @@ let encoding =
       "ringbuf", RingBuff ;
       "row-binary", RowBinary ;
       "s-expression", SExpr ;
-      "csv", CSV ] in
+      "csv", CSV ;
+      "json", Json ] in
   let env = Term.env_info "ENCODING" in
   let doc = "Encoding format for output." in
   let docv = docv_of_enum encodings in
@@ -179,7 +177,7 @@ given:
 .helper functions
 [source,ml]
 ----
-type encodings = Null (* <1> *) | RowBinary | SExpr | RingBuff | CSV
+type encodings = Null | RowBinary | SExpr | RingBuff | CSV | Json
 ----
 
 and:
@@ -323,7 +321,7 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
 
 == Main function
 
-This is all the command line arguments that are needed.
+These are all the command line arguments that are needed.
 After displaying the version of the program (always useful when all we have are
 the logs), cmdliner can parse them all and call the +start+ function:
 
@@ -401,7 +399,7 @@ The +start+ function must thus prepare five functions:
 2. one that, given a buffer and a generated value, encodes this value in the requested format (+serialize+);
 3. one that tells if the buffer is ready to be sent (+is_full+);
 4. one that sends the buffer to the desired target (+output+).
-4. and finally, one that wait some time to meet the rate limit (+rate_limit+).
+4. and finally, one that wait some time to comply with the rate limit (+rate_limit+).
 
 Alas, the above code cannot be type checked! Indeed, the variable +v+ has type
 +schema+, which is known only at runtime.  That's why the functions
@@ -432,15 +430,15 @@ let main_loop serialize_random_value is_full output rate_limit buffer =
 The dessser library offers a value generator already. More exactly, it has a
 function that returns the code of a function returning a random value of any
 type. That's because dessser is a meta-programming tool: it generates code
-that's tailored to specific data type. So despite the fact datasino works on
+that's tailored to specific data types. So despite the fact datasino works on
 any data type (ie. the schema is known only at runtime), the code that will
 manipulate data will be as efficient as if the data type was known at compile
-type. To achieve this, datasino will generate some code and then compile it
+time. To achieve this, datasino will generate some code and then compile it
 and dynamically load it.
 
 And since we will have several such functions we want to generate at run time,
 we will build a single compilation unit with all of them so there is only one
-external compilation of library to dynamically load.
+external compilation and only one library to be dynamically loaded.
 
 First, a compilation unit is created:
 
@@ -463,7 +461,7 @@ to which we can add identifiers and their definition:
     but also the identifier (as a dessser expression) for the added expression,
     and the name for this identifier. We will not use the identifier because
     we are not going to call this function from another piece of generated
-    code, and the name we have chosen outself as "random_value".
+    code, and the name we have chosen ourself as "random_value".
 
 We will get back to this function and how datasino can actually call it when
 we compile and load that compilation unit.
@@ -471,10 +469,10 @@ we compile and load that compilation unit.
 === The Serializer
 
 The next step is to build the +serializer+ function. Again, the serializer will be
-tailored to the specific schema and encoding, so that's another function for the
-compilation unit +compunit+.
+tailored to the specific schema and encoding, so that's another function to be
+added to the compilation unit +compunit+.
 
-The way that function is build is to apply a functor that will then return a
+The way this function is build is to apply a functor that will then return a
 module specific for the chosen encoding, which exports a function named
 +serialize+ which returns the code to serialize any value of a given type. Its
 signature is almost what is needed:
@@ -484,27 +482,42 @@ signature is almost what is needed:
 [source,ml]
 ----
 val serialize : ?config:Ser.config (* <1> *) ->
-                T.maybe_nullable (* <2> *) ->
-                DE.t (* <3> <4> *) ->  (* The field mask *)
-                DE.t (* <3> *) ->  (* The value *)
-                DE.t (* <3> *) ->  (* The "pointer" where to serialize into *)
-                DE.t (* <3> *)     (* The "pointer" after the serialized value *)
+                ?with_fieldmask:bool <2> ->
+                ?type_name:string <3> ->
+                T.mn (* <4> *) ->
+                U.t (* <5> *) ->
+                U.t * E.t * string (* <6> *)
 ----
+
 <1> Each encoding has different configuration options and we'd like to eventually
     control all of them from datasino command line.
 
-<2> This is the type of the values that need to be serialized, ie. +schema+.
+<2> Masks, or field-masks, are a way to generate code that can dynamically
+    skip some fields of data structures. This feature is not used in datasino.
 
-<3> Values of type +DE.t+ are expressions. This is a real annoyance that all
-    dessser's expressions appear to OCaml only as "expression" without their
-    actual type. As a result, dessser does its own type checking at runtime
-    and as a simple type system. A milder annoyance is that expression types
-    have to be indicated in comments, as here.
+<3> The type name (defaults to "t") so that it can be used recursively in the
+    type definition. Here we will leave the default so that +this+, which defaults
+    to +this "t"+, will refer to the whole schema, if recursion is needed.
 
-<4> The field mask is a mask instructing (at runtime) which fields need to be
-    serialized. Here we want to always serialize the whole value, so we will
-    just use +DM.Copy+ (or rather its runtime expression
-    +DE.Ops.copy_field+).
+<4> This is the type of the values that need to be serialized, ie. +schema+.
+
+<5> The compilation unit into which the serializing function is to be added.
+
+<6> The return value is the new compilation unit, the identifier for that
+    function and its name. The function identifier is returned as an expression
+    (+E.t+).
+
+Given we are not going to use dynamic field masks, the function created by
++serialize+ will have this signature:
+
+.signature of the function generated by serialize
+[NOTE]
+[source,ml]
+---
+$schema -> DH.Pointer.t -> DH.Pointer.t
+---
+
+where +$schema+ is a placeholder for the actual type we asked for (+schema+).
 
 What dessser calls "pointer" is merely a byte buffer under the hood (for
 OCaml backend at least).
@@ -539,9 +552,13 @@ robust than elegant:
     | CSV ->
         let module Ser = DessserCsv.Ser in
         let module Serializer = DessserHeapValue.Serialize (Ser) in
-        Serializer.serialize ?config:(csv_config ()) in
+        Serializer.serialize ?config:(csv_config ())
+    | Json ->
+        let module Ser = DessserJson.Ser in
+        let module Serializer = DessserHeapValue.Serialize (Ser) in
+        Serializer.serialize ?config:(json_config ()) in
   let compunit, ser_id, _ =
-    serialize ~with_fieldmask:false "t" schema compunit in
+    serialize ~with_fieldmask:false schema compunit in
   (* Rather have a function called "serialize": *)
   let compunit, _, _ =
     DE.Ops.func2 schema DT.ptr (fun v dst ->
@@ -558,13 +575,18 @@ record based on the command line parameters, most of them still to be done:
 let null_config () = None
 and ringbuf_config () = None
 and rowbinary_config () = None
-and sexpr_config () = None
+and sexpr_config () =
+  Some {DessserSExpr.default_config with
+          newline = if with_newlines then Some '\n' else None }
 and csv_config () =
   Some { DessserCsv.default_config with
-           separator ; null ; quote ; clickhouse_syntax } in
+           separator ; null ; quote ; clickhouse_syntax }
+and json_config () =
+  Some { DessserJson.default_config with
+           newline = if with_newlines then Some '\n' else None } in
 ----
 
-given those additional command line parameters to control CSV encoding:
+given those additional command line parameters to control CSV and JSON encodings:
 
 .command line arguments
 [source,ml]
@@ -592,6 +614,12 @@ let clickhouse_syntax =
   let doc = "Should CSV encoder uses clickhouse syntax for compound types." in
   let i = Arg.info ~doc ~env [ "csv-clickhouse-syntax" ] in
   Arg.(value (flag i))
+
+let with_newlines =
+  let env = Term.env_info "JSON_NEWLINES" in
+  let doc = "Append a newline after every JSON/S-expression value." in
+  let i = Arg.info ~doc ~env [ "with-newlines" ] in
+  Arg.(value (flag i))
 ----
 
 .extra command line arguments
@@ -601,12 +629,13 @@ $ separator
 $ null
 $ quote
 $ clickhouse_syntax
+$ with_newlines
 ----
 
 .extra command line parameters
 [source,ml]
 ----
-separator null quote clickhouse_syntax
+separator null quote clickhouse_syntax with_newlines
 ----
 
 In the arguments above the type +better_char+ is used to allow non printable
@@ -633,9 +662,9 @@ let better_char =
 
 === Generating +serialize_random_value+
 
-Remember we said we want to manipulate from datasino only the combination of
-serialize applied to a random_value, so that the actual type of the value does
-not bubble up to compile time.
+Remember we said we can only manipulate from datasino the combination of
+serialize applied to a random_value (as opposed to generating the value first
+and then serializing it), so that the actual type of the value does not appear.
 
 Let's therefore generate this +serialize_random_value+ function from the two above:
 
@@ -1020,17 +1049,16 @@ extra_search_paths
 ----
 
 So if all goes well, calling +compile_and_load+ now will result in the
-compilation unit to be compiled and loaded, at what tine the initialization of
+compilation unit to be compiled and loaded, at what time the initialization of
 the +registration+ top level variable will set the value of datasino reference
 +gen_serialize_random_value+ to the actual value from within the freshly
 compiled compilation unit, so that by the time the +compile_and_load+ function
-return the actual function will be ready for duty.
+returns the actual function will be ready for duty.
 
 .start function
 [source,ml]
 ----
-  let backend_mod = (module DessserBackEndOCaml : Dessser.BACKEND) in
-  DessserDSTools.compile_and_load ~extra_search_paths backend_mod compunit ;
+  DessserBackEndOCaml.compile_and_load ~extra_search_paths compunit ;
   let serialize_random_value = !gen_serialize_random_value in
 ----
 
@@ -1179,7 +1207,7 @@ its sole job is to write its content into that file:
 ----
 let write_buffer file buffer =
   let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
-  let len = Bytes.length bytes in
+  let len = snd buffer in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
 ----
