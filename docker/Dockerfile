@@ -1,5 +1,5 @@
 # vim: ft=dockerfile
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 
 # Do not install recommends:
 RUN echo 'APT::Install-Recommends "0";' > \
@@ -34,7 +34,7 @@ RUN echo | /tmp/install-opam.sh
 RUN /usr/local/bin/opam init --no-setup --disable-sandboxing
 RUN /usr/local/bin/opam update --yes
 # Let's use the same version as locally:
-RUN opam switch install --yes datasino 4.09.0+flambda
+RUN opam switch install --yes datasino 4.09.1+flambda
 
 RUN opam repo add --set-default ocalme \
       git://github.com/rixed/ocalme-opam-repository.git
