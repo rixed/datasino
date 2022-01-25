@@ -147,6 +147,19 @@ Using again a floating value here gives more control on the actual data rate
 (obviously each repetition will occur an integral number of times, but the
 average need not be an integer).
 
+Finally, we might want to output only a given number of values before exiting,
+thus the +count+ parameter:
+
+.command line arguments
+[source,ml]
+----
+let count =
+  let env = Term.env_info "COUNT" in
+  let doc = "If >= 0, exit after than many values has been written." in
+  let i = Arg.info ~doc ~env [ "c" ; "count" ] in
+  Arg.(value (opt int ~-1 i))
+----
+
 === Encoding
 
 Dessser generates values as normal heap allocated values and can then
@@ -326,7 +339,7 @@ instructed to be quiet (recommanded if one intend to output data on stdout):
 [source,ml]
 ----
 let quiet =
-  let env = Term.env_info "DATASINO_QUIET" in
+  let env = Term.env_info "QUIET" in
   let doc = "Do not print actual output rate on stdout." in
   let i = Arg.info ~doc ~env [ "q" ; "quiet" ] in
   Arg.(value (flag i))
@@ -349,6 +362,7 @@ let () =
         $ schema
         $ rate_limit
         $ stutter
+        $ count
         $ encoding
         $ output_file
         $ discard
@@ -375,7 +389,7 @@ the logs), the first thing this +start+ function should do is to call the
 [source,ml]
 ----
 let start
-      quiet schema rate_limit stutter encoding output_file discard
+      quiet schema rate_limit stutter count encoding output_file discard
       kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
       kafka_compression_codec kafka_compression_level
       max_size max_count (* ...extra command line parameters... *) =
@@ -393,16 +407,17 @@ main loop will therefore look like:
 .main loop, take 1
 [source,ml]
 ----
-let main_loop random_value serialize is_full output rate_limit buffer =
-  let rec loop buffer =
-    let v = random_value () in
-    let buffer = serialize buffer v in
-    let buffer =
-      if is_full buffer then output buffer
-      else buffer in
-    rate_limit () ;
-    loop buffer in
-  loop buffer
+let main_loop random_value serialize is_full output rate_limit count buffer =
+  let rec loop buffer count =
+    if count > 0 then
+      let v = random_value () in
+      let buffer = serialize buffer v in
+      let buffer =
+        if is_full buffer then output buffer
+        else buffer in
+      rate_limit () ;
+      loop buffer (count - 1) in
+  loop buffer count
 ----
 
 With a functional style persistent +buffer+ which will be a
@@ -428,15 +443,16 @@ that datasino program itself can be compiled without knowing the actual type of
 .main loop
 [source,ml]
 ----
-let main_loop serialize_random_value is_full output rate_limit buffer =
-  let rec loop buffer =
-    let buffer = serialize_random_value buffer in
-    let buffer =
-      if is_full buffer then output buffer
-      else buffer in
-    rate_limit () ;
-    loop buffer in
-  loop buffer
+let main_loop serialize_random_value is_full output rate_limit count buffer =
+  let rec loop buffer count =
+    if count > 0 then
+      let buffer = serialize_random_value buffer in
+      let buffer =
+        if is_full buffer then output buffer
+        else buffer in
+      rate_limit () ;
+      loop buffer (count - 1) in
+  loop buffer count
 ----
 
 === The value generator
@@ -1129,7 +1145,7 @@ be called:
 [source,ml]
 ----
   let buffer = DH.pointer_of_buffer max_msg_size in
-  main_loop serialize_random_value is_full output rate_limit buffer
+  main_loop serialize_random_value is_full output rate_limit count buffer
 ----
 
 == Filling in the boring details
