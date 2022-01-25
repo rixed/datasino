@@ -319,21 +319,35 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
     raise (Failure "--kafka-compression-level must be between -1 and 12")
 ----
 
+=== Options to control verbosity
+
+Datasino will output regularly its actual output rate on stdout unless
+instructed to be quiet (recommanded if one intend to output data on stdout):
+
+.command line arguments
+[source,ml]
+----
+let quiet =
+  let env = Term.env_info "DATASINO_QUIET" in
+  let doc = "Do not print actual output rate on stdout." in
+  let i = Arg.info ~doc ~env [ "q" ; "quiet" ] in
+  Arg.(value (flag i))
+----
+
 == Main function
 
 These are all the command line arguments that are needed.
-After displaying the version of the program (always useful when all we have are
-the logs), cmdliner can parse them all and call the +start+ function:
+We rely on cmdliner to parse them all and call the +start+ function:
 
 .main function
 [source,ml]
 ----
 let () =
-  Printf.printf "Datasino v%s\n%!" version ;
   let start_cmd =
     let doc = "Datasino - random data generator" in
     Term.(
       (const start
+        $ quiet
         $ schema
         $ rate_limit
         $ stutter
@@ -355,17 +369,19 @@ let () =
   Term.eval start_cmd |> Term.exit
 ----
 
-The first thing this +start+ function should do is to call the +check_command_line+
-function:
+After displaying the version of the program (always useful when all we have are
+the logs), the first thing this +start+ function should do is to call the
++check_command_line+ function:
 
 .start function
 [source,ml]
 ----
 let start
-      schema rate_limit stutter encoding output_file discard
+      quiet schema rate_limit stutter encoding output_file discard
       kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
       kafka_compression_codec kafka_compression_level
       max_size max_count (* ...extra command line parameters... *) =
+  if not quiet then Printf.printf "Datasino v%s\n%!" version ;
   check_command_line
     output_file discard
     kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
@@ -728,7 +744,7 @@ let output =
   else if discard then
     ignore
   else
-    output_to_kafka kafka_brokers kafka_topic kafka_partitions kafka_timeout
+    output_to_kafka quiet kafka_brokers kafka_topic kafka_partitions kafka_timeout
                     kafka_wait_confirm kafka_compression_codec kafka_compression_level
                     max_msg_size
   in
@@ -765,10 +781,10 @@ As for kafka, we merely rely on the bindings to rdkafka client library:
 .output functions
 [source,ml]
 ----
-let output_to_kafka brokers topic partitions timeout wait_confirm
+let output_to_kafka quiet brokers topic partitions timeout wait_confirm
                     compression_codec compression_level max_msg_size =
   let open Kafka in
-  Printf.printf "Connecting to Kafka at %s\n%!" brokers ;
+  if not quiet then Printf.printf "Connecting to Kafka at %s\n%!" brokers ;
   let delivery_callback msg_id = function
     | None -> (* No error *) ()
     | Some err_code ->
@@ -881,7 +897,7 @@ counts, and a function being called every time +rate_limit+ is:
         Avg.update avg_5m now |||
         Avg.update avg_1m now |||
         Avg.update avg_10s now in
-      if display then
+      if not quiet && display then
         Printf.printf "%sRates: 10s: %a, 1min: %a, 5min: %a, global: %a\n%!"
           prefix (* <2> *)
           Avg.print avg_10s
@@ -933,7 +949,7 @@ struct
 
   let print oc t =
     if t.last_avg >= 0. then
-      Printf.printf "%g" t.last_avg
+      Printf.fprintf oc "%g" t.last_avg
     else
       String.print oc "n.a."
 end
@@ -1293,6 +1309,7 @@ open Datasino_main
 [source,ml]
 ----
 (* ...external modules... *)
+open Datasino_config
 open Datasino_tools
 
 (* ...registering callback... *)

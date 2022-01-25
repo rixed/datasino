@@ -1,7 +1,7 @@
 
-# 1313 "README.adoc"
+# 1326 "README.adoc"
 
-# 32 "README.adoc"
+# 28 "README.adoc"
 open Batteries
 open Cmdliner
 
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1313 "README.adoc"
+# 1326 "README.adoc"
 
 
 exception Not_implemented of string
@@ -20,17 +20,17 @@ let todo msg =
   raise (Not_implemented msg)
 
 
-# 184 "README.adoc"
+# 180 "README.adoc"
 type encodings = Null | RowBinary | SExpr | RingBuff | CSV | Json
 
-# 192 "README.adoc"
+# 188 "README.adoc"
 let docv_of_enum l =
   IO.to_string (
     List.print ~first:"" ~last:"" ~sep:"|" (fun oc (n, _) ->
       String.print oc n)
   ) l
 
-# 905 "README.adoc"
+# 917 "README.adoc"
 module Avg =
 struct
   type t =
@@ -66,18 +66,18 @@ struct
 
   let print oc t =
     if t.last_avg >= 0. then
-      Printf.printf "%g" t.last_avg
+      Printf.fprintf oc "%g" t.last_avg
     else
       String.print oc "n.a."
 end
 
-# 955 "README.adoc"
+# 967 "README.adoc"
 let (|||) = (||)
 
-# 1135 "README.adoc"
+# 1147 "README.adoc"
 let mins m = float_of_int (60 * m)
 
-# 1189 "README.adoc"
+# 1201 "README.adoc"
 let file_exists name =
   let open Unix in
   try
@@ -94,16 +94,16 @@ let tmp_name name =
     if file_exists tmp_name then retry (n + 1) else tmp_name in
   retry 1
 
-# 1319 "README.adoc"
+# 1332 "README.adoc"
 
 
-# 1163 "README.adoc"
+# 1175 "README.adoc"
 type opened_file =
   { fd : Unix.file_descr ;
     name : string ;
     opened_name : string }
 
-# 1176 "README.adoc"
+# 1188 "README.adoc"
 let open_file name =
   let open Unix in
   let opened_name =
@@ -111,24 +111,24 @@ let open_file name =
   { fd = openfile opened_name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640 ;
     name ; opened_name }
 
-# 1212 "README.adoc"
+# 1224 "README.adoc"
 let write_buffer file buffer =
   let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
   let len = snd buffer in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
 
-# 1224 "README.adoc"
+# 1236 "README.adoc"
 let rotate_file file =
   let open Unix in
   Unix.close file.fd ;
   if file.opened_name <> file.name then
     Unix.rename file.opened_name file.name
 
-# 1320 "README.adoc"
+# 1333 "README.adoc"
 
 
-# 1238 "README.adoc"
+# 1250 "README.adoc"
 let kafka_err_string =
   let open Kafka in
   function
@@ -164,5 +164,5 @@ let kafka_err_string =
   | CONF_UNKNOWN -> "CONF_UNKNOWN"
   | CONF_INVALID -> "CONF_INVALID"
 
-# 1321 "README.adoc"
+# 1334 "README.adoc"
 
