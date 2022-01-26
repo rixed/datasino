@@ -1,7 +1,7 @@
 
-# 1526 "README.adoc"
+# 1641 "README.adoc"
 
-# 199 "README.adoc"
+# 203 "README.adoc"
 open Batteries
 open Cmdliner
 
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1526 "README.adoc"
+# 1641 "README.adoc"
 
 
 exception Not_implemented of string
@@ -20,17 +20,17 @@ let todo msg =
   raise (Not_implemented msg)
 
 
-# 364 "README.adoc"
+# 423 "README.adoc"
 type encodings = Null | RowBinary | SExpr | RingBuff | CSV | Json
 
-# 372 "README.adoc"
+# 431 "README.adoc"
 let docv_of_enum l =
   IO.to_string (
     List.print ~first:"" ~last:"" ~sep:"|" (fun oc (n, _) ->
       String.print oc n)
   ) l
 
-# 1117 "README.adoc"
+# 1232 "README.adoc"
 module Avg =
 struct
   type t =
@@ -71,13 +71,13 @@ struct
       String.print oc "n.a."
 end
 
-# 1167 "README.adoc"
+# 1282 "README.adoc"
 let (|||) = (||)
 
-# 1347 "README.adoc"
+# 1462 "README.adoc"
 let mins m = float_of_int (60 * m)
 
-# 1401 "README.adoc"
+# 1516 "README.adoc"
 let file_exists name =
   let open Unix in
   try
@@ -94,16 +94,16 @@ let tmp_name name =
     if file_exists tmp_name then retry (n + 1) else tmp_name in
   retry 1
 
-# 1532 "README.adoc"
+# 1647 "README.adoc"
 
 
-# 1375 "README.adoc"
+# 1490 "README.adoc"
 type opened_file =
   { fd : Unix.file_descr ;
     name : string ;
     opened_name : string }
 
-# 1388 "README.adoc"
+# 1503 "README.adoc"
 let open_file name =
   let open Unix in
   let opened_name =
@@ -111,24 +111,24 @@ let open_file name =
   { fd = openfile opened_name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640 ;
     name ; opened_name }
 
-# 1424 "README.adoc"
+# 1539 "README.adoc"
 let write_buffer file buffer =
   let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
   let len = snd buffer in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
 
-# 1436 "README.adoc"
+# 1551 "README.adoc"
 let rotate_file file =
   let open Unix in
   Unix.close file.fd ;
   if file.opened_name <> file.name then
     Unix.rename file.opened_name file.name
 
-# 1533 "README.adoc"
+# 1648 "README.adoc"
 
 
-# 1450 "README.adoc"
+# 1565 "README.adoc"
 let kafka_err_string =
   let open Kafka in
   function
@@ -164,5 +164,5 @@ let kafka_err_string =
   | CONF_UNKNOWN -> "CONF_UNKNOWN"
   | CONF_INVALID -> "CONF_INVALID"
 
-# 1534 "README.adoc"
+# 1649 "README.adoc"
 

@@ -109,6 +109,10 @@ The special keyword +this+ corresponds to the current type and can be used to bu
        -s TYPE, --schema=TYPE (required)
            The type of the data to be generated (inline or @file).
 
+       -m VAL, --map=VAL (absent MAP env)
+           Optional function to convert/modify input values of the schema type
+           before emission.
+
        -e null|row-binary|s-expression|csv|json,
        --encoding=null|ringbuf|row-binary|s-expression|csv|json
        (absent=s-expression or ENCODING env)
@@ -255,13 +259,17 @@ pretty printer:
 .command line custom types
 [source,ml]
 ----
+(* [string_or_file_content s] returns either [s] or, if [s] starts with
+  '@', the content of that file name, à la curl: *)
+let string_or_file_content s =
+  if String.length s > 0 && s.[0] = '@' then
+    DessserTools.read_whole_file (String.lchop s)
+  else
+    s
+
 let mn_t =
   let parse s =
-    let s =
-      if String.length s > 0 && s.[0] = '@' then
-        DessserTools.read_whole_file (String.lchop s)
-      else
-        s in
+    let s = string_or_file_content s in
     match DessserParser.mn_of_string ~any_format:true (* <1> *) s with
     | exception e ->
         Stdlib.Error (`Msg (Printexc.to_string e))
@@ -275,6 +283,57 @@ let mn_t =
 
 <1> This is what makes dessser parser accepts both ClickHouse and its own
 format to specify the schema.
+
+=== Constraints on values
+
+If all one want is to fill some data pipeline with data, random values of the
+proper type may be sufficient, but in many cases one will wish to have at least
+some data fields with realistic data.
+
+That's why it is possible to modify the generated random sample before it's
+sent, so that some fields can be adapted/overwritten.
+
+The most straightforward way to do so is to accept a user-defined function in
+the command line.  The user would have to spell out this function in
+libdessser's intermediate language though.  Then, nothing prevents this
+function, that takes a value of type +schema+ in input, to actually return a
+value of another type, and that's the type that's going to be emitted
+ultimately. Since this function is really just a map function, let's call it
+that:
+
+.command line arguments
+[source,ml]
+----
+let map =
+  let env = Term.env_info "MAP" in
+  let doc = "Optional function to convert/modify input values of the schema \
+             type before emission." in
+  let i = Arg.info ~doc ~env [ "m" ; "map" ] in
+  Arg.(value (opt (some expr_t) None i))
+----
+
+where +expr_t+ is a command line parser for libdessser's expressions that we can
+build in about the same way the +mn_t+ parser was build earlier:
+
+.command line custom types
+[source,ml]
+----
+let expr_t =
+  let parse s =
+    let s = string_or_file_content s in
+    match DessserParser.expr_of_string s with
+    | exception e ->
+        Stdlib.Error (`Msg (Printexc.to_string e))
+    | e ->
+        Stdlib.Ok e
+  and print fmt e =
+    Format.fprintf fmt "%s" (DE.to_string e)
+  in
+  Arg.conv ~docv:"EXPRESSION" (parse, print)
+----
+
+Of course when this +map+ function is unspecified no such transformation of
+values will take place (equivalent to plugin the identity function).
 
 === Rate limit
 
@@ -531,6 +590,7 @@ let () =
       (const start
         $ quiet
         $ schema
+        $ map
         $ rate_limit
         $ stutter
         $ count
@@ -560,7 +620,7 @@ the logs), the first thing this +start+ function should do is to call the
 [source,ml]
 ----
 let start
-      quiet schema rate_limit stutter count encoding output_file discard
+      quiet schema map rate_limit stutter count encoding output_file discard
       kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
       kafka_compression_codec kafka_compression_level
       max_size max_count (* ...extra command line parameters... *) =
@@ -578,10 +638,11 @@ main loop will therefore look like:
 .main loop, take 1
 [source,ml]
 ----
-let main_loop random_value serialize is_full output rate_limit count buffer =
+let main_loop random_value map serialize is_full output rate_limit count buffer =
   let rec loop buffer count =
     if count > 0 then
       let v = random_value () in
+      let v = map v in
       let buffer = serialize buffer v in
       let buffer =
         if is_full buffer then output buffer
@@ -603,13 +664,14 @@ The +start+ function must thus prepare five functions:
 
 Alas, the above code cannot be type checked! Indeed, the variable +v+ has type
 +schema+, which is known only at runtime.  That's why the functions
-+random_value+ (which returns a value of unknown type) and +serialize+ (which
-accept that value of unknown type) have to be generated at runtime.
++random_value+ (which returns a value of unknown type), +map+ (which accepts it
+and returns another value of yet another unknown type), and +serialize+ (which
+accept that later value) have to be generated at runtime.
 
-A way around this is to combine both +random_value+ and +serialize+ into a
-single function that directly generates a random value and serializes it, so
-that datasino program itself can be compiled without knowing the actual type of
-+v+. This changes the above main loop into:
+A way around this is to combine those three functions into a single one that
+directly generates a random value, map it and serializes it, so that datasino
+program itself can be compiled without knowing the actual type of +v+. This
+changes the above main loop into:
 
 .main loop
 [source,ml]
@@ -680,6 +742,54 @@ compilation unit:
 We will get back to this function and how datasino can actually call it when
 we compile and load that compilation unit.
 
+=== The mapping function
+
+Similarly to the above the user provided mapping function, if actually present
+on the command line, must also be added into the compilation unit.
+
+While at it,
+we also retrieve the output type that is going to be serialized (+enc_schema+).
+
+This also gives us the opportunity to type-check the expression passed on the
+command line, resulting in a better error message than the one the compiler
+would output in case something does not align properly.
+
+Indeed, the command line parser just ensured it was a valid expression but
+never actually checked that it is a function accepting values of the
+specified type +schema+.
+
+For this we make use of a few libdessser's introspecting functions that are not
+the scope of this present document but which behavior are hopefully clear
+enough.
+
+.start function
+[source,ml]
+----
+  let compunit, enc_schema =
+    match map with
+    | None ->
+        compunit, schema
+    | Some f ->
+        let enc_schema =
+          match DE.(type_of no_env f) with
+          | DT.{ typ = TFunction ([| in_t |], out_t) ; nullable = false ; _ } ->
+              if not (DT.eq_mn in_t schema) then
+                Printf.sprintf2 "Passed map function must accept values of the \
+                                 specified schema, not %a"
+                  DT.print_mn in_t |>
+                failwith ;
+              out_t
+          | map_t ->
+              Printf.sprintf2 "Passed map function must be a function accepting \
+                               values of the specified schema, but this was \
+                               passed: %a"
+                DT.print_mn map_t |>
+              failwith
+        and compunit, _, _ =
+          DU.add_identifier_of_expression compunit ~name:"map" f in
+        compunit, enc_schema in
+----
+
 === The Serializer
 
 The next step is to build the +serializer+ function. Again, the serializer will be
@@ -713,7 +823,7 @@ val serialize : ?config:Ser.config (* <1> *) ->
     type definition. Here we will leave the default so that +this+, which defaults
     to +this "t"+, will refer to the whole schema, if recursion is needed.
 
-<4> This is the type of the values that need to be serialized, ie. +schema+.
+<4> This is the type of the values that need to be serialized, ie. +enc_schema+.
 
 <5> The compilation unit into which the serializing function is to be added.
 
@@ -731,7 +841,9 @@ Given we are not going to use dynamic field masks, the function created by
 $schema -> DH.Pointer.t -> DH.Pointer.t
 ---
 
-where +$schema+ is a placeholder for the actual type we asked for (+schema+).
+where +$schema+ is a placeholder for the actual type we asked for (+enc_schema+
+at this stage, which is different from the +schema+ passed on the command line
+if the map function changed the values into another type).
 
 What dessser calls "pointer" is merely a byte buffer under the hood (for
 OCaml backend at least).
@@ -772,10 +884,10 @@ robust than elegant:
         let module Serializer = DessserHeapValue.Serialize (Ser) in
         Serializer.serialize ?config:(json_config ()) in
   let compunit, ser_id, _ =
-    serialize ~with_fieldmask:false schema compunit in
+    serialize ~with_fieldmask:false enc_schema compunit in
   (* Rather have a function called "serialize": *)
   let compunit, _, _ =
-    DE.Ops.func2 schema DT.ptr (fun v dst ->
+    DE.Ops.func2 enc_schema DT.ptr (fun v dst ->
       DE.Ops.apply ser_id [ v ; dst ]) |>
     DU.add_identifier_of_expression compunit ~name:"serialize" in
 ----
@@ -880,7 +992,8 @@ Remember we said we can only manipulate from datasino the combination of
 serialize applied to a random_value (as opposed to generating the value first
 and then serializing it), so that the actual type of the value does not appear.
 
-Let's therefore generate this +serialize_random_value+ function from the two above:
+Let's therefore generate this +serialize_random_value+ function from the three
+functions +random_value+, +map+ then +serialize+:
 
 .start function
 [source,ml]
@@ -889,6 +1002,8 @@ Let's therefore generate this +serialize_random_value+ function from the two abo
     DE.Ops.func1 DT.ptr (fun dst ->
       let open DE.Ops in
       let v (* <1> *) = apply (identifier "random_value") [] in
+      let v =
+        if map = None then v else apply (identifier "map") [ v ] in
       apply (identifier "serialize") [ v ; dst ]) |>
     DU.add_identifier_of_expression compunit ~name:"serialize_random_value" in
 ----
