@@ -17,7 +17,7 @@ remove: [make "bin_dir=%{bin}%" "uninstall"]
 depends: [
   "batteries" {build >= "3.2.0"}
   "cmdliner" {build & >= "1.0.4"}
-  "dessser" {= "28.3.0"}
+  "dessser" {= "28.5.0"}
   "kafka" {build >= "0.4"}
   "ocamlfind" {build & >= "1.8.0"}
 ]
