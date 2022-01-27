@@ -2930,7 +2930,7 @@ $as_echo "not found" >&6; }
 
 
 
-ac_config_files="$ac_config_files Makefile opam"
+ac_config_files="$ac_config_files Makefile opam docker/Dockerfile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -3639,6 +3639,7 @@ do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "opam") CONFIG_FILES="$CONFIG_FILES opam" ;;
+    "docker/Dockerfile") CONFIG_FILES="$CONFIG_FILES docker/Dockerfile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

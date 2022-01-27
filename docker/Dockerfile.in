@@ -42,7 +42,7 @@ RUN opam repo priority ocalme 1
 RUN opam update
 
 # Install datasino
-RUN opam install --yes datasino
+RUN opam install --yes datasino.@PACKAGE_VERSION@
 
 # Clean up
 RUN DEBIAN_FRONTEND=noninteractive \

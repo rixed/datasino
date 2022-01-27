@@ -13,3 +13,4 @@ opam
 META
 src/datasino_config.ml
 README.html
+docker/Dockerfile

@@ -22,5 +22,6 @@ AC_CHECK_OCAML_PKG(kafka)
 AC_CONFIG_FILES([
   Makefile
   opam
+  docker/Dockerfile
 ])
 AC_OUTPUT
