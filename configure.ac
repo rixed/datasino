@@ -1,4 +1,4 @@
-AC_INIT(datasino, 0.8.0)
+AC_INIT(datasino, 0.9.0)
 m4_include([m4/ocaml.m4])
 
 AC_ARG_VAR(OCAMLFLAGS, [Additional flags to pass to the ocaml compiler])
