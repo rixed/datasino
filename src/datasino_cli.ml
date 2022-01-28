@@ -1,5 +1,5 @@
 
-# 1613 "README.adoc"
+# 1615 "README.adoc"
 
 # 203 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1613 "README.adoc"
+# 1615 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -55,7 +55,7 @@ let expr_t =
   in
   Arg.conv ~docv:"EXPRESSION" (parse, print)
 
-# 974 "README.adoc"
+# 976 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -70,7 +70,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1618 "README.adoc"
+# 1620 "README.adoc"
 
 
 # 249 "README.adoc"
@@ -200,7 +200,7 @@ let quiet =
   let i = Arg.info ~doc ~env [ "q" ; "quiet" ] in
   Arg.(value (flag i))
 
-# 920 "README.adoc"
+# 922 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -231,21 +231,21 @@ let with_newlines =
   let i = Arg.info ~doc ~env [ "with-newlines" ] in
   Arg.(value (flag i))
 
-# 1293 "README.adoc"
+# 1295 "README.adoc"
 let prefix =
   let env = Term.env_info "PREFIX" in
   let doc = "Any string to prefix the stdout logs with." in
   let i = Arg.info ~doc ~env [ "prefix" ] in
   Arg.(value (opt string "" i))
 
-# 1363 "README.adoc"
+# 1365 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1619 "README.adoc"
+# 1621 "README.adoc"
 
 
 # 586 "README.adoc"
@@ -273,17 +273,17 @@ let () =
         $ max_size
         $ max_count
         
-# 954 "README.adoc"
+# 956 "README.adoc"
 $ separator
 $ null
 $ quote
 $ clickhouse_syntax
 $ with_newlines
 
-# 1303 "README.adoc"
+# 1305 "README.adoc"
 $ prefix
 
-# 1373 "README.adoc"
+# 1375 "README.adoc"
 $ extra_search_paths
 
 # 609 "README.adoc"
@@ -292,5 +292,5 @@ $ extra_search_paths
   in
   Term.eval start_cmd |> Term.exit
 
-# 1620 "README.adoc"
+# 1622 "README.adoc"
 

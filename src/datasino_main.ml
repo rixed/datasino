@@ -1,5 +1,5 @@
 
-# 1626 "README.adoc"
+# 1628 "README.adoc"
 
 # 203 "README.adoc"
 open Batteries
@@ -12,38 +12,39 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1626 "README.adoc"
+# 1628 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
 
 
-# 1332 "README.adoc"
+# 1334 "README.adoc"
 let gen_serialize_random_value : (DH.Pointer.t -> DH.Pointer.t) ref =
   ref (fun _buffer -> assert false)
 
-# 1630 "README.adoc"
+# 1632 "README.adoc"
 
 
-# 679 "README.adoc"
+# 680 "README.adoc"
 let main_loop serialize_random_value is_full output rate_limit count buffer =
   let rec loop buffer count =
-    if count > 0 then
+    if count <> 0 then
       let buffer = serialize_random_value buffer in
       let buffer =
         if is_full buffer then output buffer
         else buffer in
       rate_limit () ;
-      loop buffer (count - 1) in
+      let count = if count > 0 then count - 1 else count in
+      loop buffer count in
   loop buffer count
 
-# 1631 "README.adoc"
+# 1633 "README.adoc"
 
 
 # 506 "README.adoc"
 let default_kafka_compression_codec = "inherit"
 
-# 1632 "README.adoc"
+# 1634 "README.adoc"
 
 
 # 543 "README.adoc"
@@ -66,10 +67,10 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
   if kafka_compression_level < -1 || kafka_compression_level > 12 then
     raise (Failure "--kafka-compression-level must be between -1 and 12")
 
-# 1633 "README.adoc"
+# 1635 "README.adoc"
 
 
-# 1073 "README.adoc"
+# 1075 "README.adoc"
 let output_to_file output_file max_count max_size =
   let single_file = max_count = 0 && max_size = 0 in
   let fd = ref None in
@@ -87,7 +88,7 @@ let output_to_file output_file max_count max_size =
       rotate_file (Option.get !fd) ;
       fd := None)
 
-# 1099 "README.adoc"
+# 1101 "README.adoc"
 let output_to_kafka quiet brokers topic partitions timeout wait_confirm
                     compression_codec compression_level max_msg_size =
   let open Kafka in
@@ -131,7 +132,7 @@ let output_to_kafka quiet brokers topic partitions timeout wait_confirm
     send ()
     (* TODO: on exit, release all producers *)
 
-# 1634 "README.adoc"
+# 1636 "README.adoc"
 
 
 # 622 "README.adoc"
@@ -140,13 +141,13 @@ let start
       kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
       kafka_compression_codec kafka_compression_level
       max_size max_count 
-# 964 "README.adoc"
+# 966 "README.adoc"
 separator null quote clickhouse_syntax with_newlines
 
-# 1309 "README.adoc"
+# 1311 "README.adoc"
 prefix
 
-# 1379 "README.adoc"
+# 1381 "README.adoc"
 extra_search_paths
 
 # 626 "README.adoc"
@@ -157,18 +158,18 @@ extra_search_paths
     kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
     kafka_compression_codec kafka_compression_level ;
 
-# 711 "README.adoc"
+# 713 "README.adoc"
   let compunit = DU.make "datasino" in
 
-# 723 "README.adoc"
+# 725 "README.adoc"
   DT.add_type_as "t" schema.DT.typ ;
 
-# 732 "README.adoc"
+# 734 "README.adoc"
   let compunit, _, _ (* <1> *) =
     DL.func_random schema |>
     DU.add_identifier_of_expression compunit ~name:"random_value" in
 
-# 768 "README.adoc"
+# 770 "README.adoc"
   let compunit, enc_schema =
     match map with
     | None ->
@@ -193,9 +194,9 @@ extra_search_paths
           DU.add_identifier_of_expression compunit ~name:"map" f in
         compunit, enc_schema in
 
-# 859 "README.adoc"
+# 861 "README.adoc"
   
-# 901 "README.adoc"
+# 903 "README.adoc"
 let null_config () = None
 and ringbuf_config () = None
 and rowbinary_config () = None
@@ -209,7 +210,7 @@ and json_config () =
   Some { DessserJson.default_config with
            newline = if with_newlines then Some '\n' else None } in
 
-# 859 "README.adoc"
+# 861 "README.adoc"
 
   let serialize =
     match encoding with
@@ -245,7 +246,7 @@ and json_config () =
       DE.Ops.apply ser_id [ v ; dst ]) |>
     DU.add_identifier_of_expression compunit ~name:"serialize" in
 
-# 1001 "README.adoc"
+# 1003 "README.adoc"
   let compunit, _, _ =
     DE.Ops.func1 DT.ptr (fun dst ->
       let open DE.Ops in
@@ -255,7 +256,7 @@ and json_config () =
       apply (identifier "serialize") [ v ; dst ]) |>
     DU.add_identifier_of_expression compunit ~name:"serialize_random_value" in
 
-# 1026 "README.adoc"
+# 1028 "README.adoc"
   let is_full =
     if max_count > 0 then
       let count = ref 0 in
@@ -269,7 +270,7 @@ and json_config () =
       fun _buffer ->
         true in
 
-# 1051 "README.adoc"
+# 1053 "README.adoc"
 let max_msg_size = (* <1> *)
   if max_size > 0 then max_size + 10_000
   else 10_000_000 in
@@ -286,12 +287,12 @@ let output =
     output_to_file "/dev/stdout" max_count max_size
   in
 
-# 1151 "README.adoc"
+# 1153 "README.adoc"
 let output buffer =
   output buffer ;
   DH.Pointer.reset buffer in
 
-# 1171 "README.adoc"
+# 1173 "README.adoc"
   let rate_limit =
     if rate_limit <= 0. then
       ignore
@@ -315,7 +316,7 @@ let output buffer =
           )
         ) in
 
-# 1203 "README.adoc"
+# 1205 "README.adoc"
   let display_rates =
     let avg_tot = Avg.make ()
     and avg_5m = Avg.make ~rotate_every:(mins 5) ()
@@ -339,7 +340,7 @@ let output buffer =
     display_rates () ;
     rate_limit () in
 
-# 1343 "README.adoc"
+# 1345 "README.adoc"
   let compunit =
     DU.add_verbatim_definition compunit ~name:"registration"
                                ~dependencies:["serialize_random_value"]
@@ -350,11 +351,11 @@ let output buffer =
            Datasino_main.gen_serialize_random_value := serialize_random_value\n"
         (DessserBackEndOCaml.let_of ~recurs ~rec_seq)) in
 
-# 1392 "README.adoc"
+# 1394 "README.adoc"
   DessserBackEndOCaml.compile_and_load ~extra_search_paths compunit ;
   let serialize_random_value = !gen_serialize_random_value in
 
-# 1409 "README.adoc"
+# 1411 "README.adoc"
   let serialize_random_value =
     (* Store the last serialized value: *)
     let last_value = Bytes.create max_msg_size
@@ -383,9 +384,9 @@ let output buffer =
         buffer
       ) in
 
-# 1446 "README.adoc"
+# 1448 "README.adoc"
   let buffer = DH.pointer_of_buffer max_msg_size in
   main_loop serialize_random_value is_full output rate_limit count buffer
 
-# 1635 "README.adoc"
+# 1637 "README.adoc"
 

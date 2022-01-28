@@ -640,7 +640,7 @@ main loop will therefore look like:
 ----
 let main_loop random_value map serialize is_full output rate_limit count buffer =
   let rec loop buffer count =
-    if count > 0 then
+    if count <> 0 then
       let v = random_value () in
       let v = map v in
       let buffer = serialize buffer v in
@@ -648,7 +648,8 @@ let main_loop random_value map serialize is_full output rate_limit count buffer 
         if is_full buffer then output buffer
         else buffer in
       rate_limit () ;
-      loop buffer (count - 1) in
+      let count = if count > 0 then count - 1 else count in
+      loop buffer count in
   loop buffer count
 ----
 
@@ -678,13 +679,14 @@ changes the above main loop into:
 ----
 let main_loop serialize_random_value is_full output rate_limit count buffer =
   let rec loop buffer count =
-    if count > 0 then
+    if count <> 0 then
       let buffer = serialize_random_value buffer in
       let buffer =
         if is_full buffer then output buffer
         else buffer in
       rate_limit () ;
-      loop buffer (count - 1) in
+      let count = if count > 0 then count - 1 else count in
+      loop buffer count in
   loop buffer count
 ----
 
