@@ -150,7 +150,7 @@ let kafka_topic =
 let kafka_partitions =
   let env = Term.env_info "KAFKA_PARTITIONS" in
   let i = Arg.info ~doc:"Kafka partitions where to send messages to \
-                         (in a round-robbin maner)."
+                         (in a round-robbin manner)."
                    ~env [ "partitions" ] in
   Arg.(value (opt (list int) [] i))
 

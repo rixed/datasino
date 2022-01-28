@@ -162,7 +162,7 @@ The special keyword +this+ corresponds to the current type and can be used to bu
 
        --partitions=VAL (absent KAFKA_PARTITIONS env)
            Kafka partitions where to send messages to (in a round-robbin
-           maner).
+           manner).
 
        --csv-clickhouse-syntax (absent CSV_CLICKHOUSE_SYNTAX env)
            Should CSV encoder uses clickhouse syntax for compound types.
@@ -469,7 +469,7 @@ let kafka_topic =
 let kafka_partitions =
   let env = Term.env_info "KAFKA_PARTITIONS" in
   let i = Arg.info ~doc:"Kafka partitions where to send messages to \
-                         (in a round-robbin maner)."
+                         (in a round-robbin manner)."
                    ~env [ "partitions" ] in
   Arg.(value (opt (list int) [] i))
 
