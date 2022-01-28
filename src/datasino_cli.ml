@@ -1,5 +1,5 @@
 
-# 1616 "README.adoc"
+# 1643 "README.adoc"
 
 # 203 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1616 "README.adoc"
+# 1643 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -70,7 +70,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1621 "README.adoc"
+# 1648 "README.adoc"
 
 
 # 249 "README.adoc"
@@ -245,7 +245,15 @@ let extra_search_paths =
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1622 "README.adoc"
+# 1391 "README.adoc"
+let keep_temp_files =
+  let env = Term.env_info "KEEP_TEMP_FILES" in
+  let doc = "Whether intermediary generated files should be kept around \
+             for inspection." in
+  let i = Arg.info ~doc ~env [ "keep-temp-files" ] in
+  Arg.(value (flag i))
+
+# 1649 "README.adoc"
 
 
 # 586 "README.adoc"
@@ -286,11 +294,14 @@ $ prefix
 # 1376 "README.adoc"
 $ extra_search_paths
 
+# 1402 "README.adoc"
+$ keep_temp_files
+
 # 609 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in
   Term.eval start_cmd |> Term.exit
 
-# 1623 "README.adoc"
+# 1650 "README.adoc"
 

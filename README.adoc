@@ -1382,6 +1382,32 @@ $ extra_search_paths
 extra_search_paths
 ----
 
+While at it, it also accept an option to keep temporary files (useful to
+inspect the generated code), so let's take this from the command line as well:
+
+.command line arguments
+[source,ml]
+----
+let keep_temp_files =
+  let env = Term.env_info "KEEP_TEMP_FILES" in
+  let doc = "Whether intermediary generated files should be kept around \
+             for inspection." in
+  let i = Arg.info ~doc ~env [ "keep-temp-files" ] in
+  Arg.(value (flag i))
+----
+
+.extra command line arguments
+[source,ml]
+----
+$ keep_temp_files
+----
+
+.extra command line parameters
+[source,ml]
+----
+keep_temp_files
+----
+
 So if all goes well, calling +compile_and_load+ now will result in the
 compilation unit to be compiled and loaded, at what time the initialization of
 the +registration+ top level variable will set the value of datasino reference
@@ -1392,7 +1418,8 @@ returns the actual function will be ready for duty.
 .start function
 [source,ml]
 ----
-  DessserBackEndOCaml.compile_and_load ~extra_search_paths compunit ;
+  DessserBackEndOCaml.compile_and_load ~extra_search_paths ~keep_temp_files
+                                       compunit ;
   let serialize_random_value = !gen_serialize_random_value in
 ----
 
