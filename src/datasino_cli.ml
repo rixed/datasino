@@ -1,5 +1,5 @@
 
-# 1615 "README.adoc"
+# 1616 "README.adoc"
 
 # 203 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1615 "README.adoc"
+# 1616 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
@@ -70,7 +70,7 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1620 "README.adoc"
+# 1621 "README.adoc"
 
 
 # 249 "README.adoc"
@@ -231,21 +231,21 @@ let with_newlines =
   let i = Arg.info ~doc ~env [ "with-newlines" ] in
   Arg.(value (flag i))
 
-# 1295 "README.adoc"
+# 1296 "README.adoc"
 let prefix =
   let env = Term.env_info "PREFIX" in
   let doc = "Any string to prefix the stdout logs with." in
   let i = Arg.info ~doc ~env [ "prefix" ] in
   Arg.(value (opt string "" i))
 
-# 1365 "README.adoc"
+# 1366 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1621 "README.adoc"
+# 1622 "README.adoc"
 
 
 # 586 "README.adoc"
@@ -280,10 +280,10 @@ $ quote
 $ clickhouse_syntax
 $ with_newlines
 
-# 1305 "README.adoc"
+# 1306 "README.adoc"
 $ prefix
 
-# 1375 "README.adoc"
+# 1376 "README.adoc"
 $ extra_search_paths
 
 # 609 "README.adoc"
@@ -292,5 +292,5 @@ $ extra_search_paths
   in
   Term.eval start_cmd |> Term.exit
 
-# 1622 "README.adoc"
+# 1623 "README.adoc"
 

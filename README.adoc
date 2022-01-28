@@ -1125,7 +1125,8 @@ let output_to_kafka quiet brokers topic partitions timeout wait_confirm
   let next_partition = ref 0 in
   fun buffer ->
     let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
-    let str = Bytes.unsafe_to_string bytes in (* producer will not keep a ref on this *)
+    let len = snd buffer in
+    let str = Bytes.sub_string bytes 0 len in (* producer will not keep a ref on this *)
     let rec send () =
       try
         Kafka.produce producer ~msg_id:!msg_id partitions.(!next_partition) str ;

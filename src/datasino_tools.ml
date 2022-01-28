@@ -1,5 +1,5 @@
 
-# 1643 "README.adoc"
+# 1644 "README.adoc"
 
 # 203 "README.adoc"
 open Batteries
@@ -12,7 +12,7 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1643 "README.adoc"
+# 1644 "README.adoc"
 
 
 exception Not_implemented of string
@@ -30,7 +30,7 @@ let docv_of_enum l =
       String.print oc n)
   ) l
 
-# 1234 "README.adoc"
+# 1235 "README.adoc"
 module Avg =
 struct
   type t =
@@ -71,13 +71,13 @@ struct
       String.print oc "n.a."
 end
 
-# 1284 "README.adoc"
+# 1285 "README.adoc"
 let (|||) = (||)
 
-# 1464 "README.adoc"
+# 1465 "README.adoc"
 let mins m = float_of_int (60 * m)
 
-# 1518 "README.adoc"
+# 1519 "README.adoc"
 let file_exists name =
   let open Unix in
   try
@@ -94,16 +94,16 @@ let tmp_name name =
     if file_exists tmp_name then retry (n + 1) else tmp_name in
   retry 1
 
-# 1649 "README.adoc"
+# 1650 "README.adoc"
 
 
-# 1492 "README.adoc"
+# 1493 "README.adoc"
 type opened_file =
   { fd : Unix.file_descr ;
     name : string ;
     opened_name : string }
 
-# 1505 "README.adoc"
+# 1506 "README.adoc"
 let open_file name =
   let open Unix in
   let opened_name =
@@ -111,24 +111,24 @@ let open_file name =
   { fd = openfile opened_name [ O_WRONLY ; O_APPEND ; O_CREAT ] 0o640 ;
     name ; opened_name }
 
-# 1541 "README.adoc"
+# 1542 "README.adoc"
 let write_buffer file buffer =
   let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
   let len = snd buffer in
   let len' = Unix.write file.fd bytes 0 len in
   assert (len = len')
 
-# 1553 "README.adoc"
+# 1554 "README.adoc"
 let rotate_file file =
   let open Unix in
   Unix.close file.fd ;
   if file.opened_name <> file.name then
     Unix.rename file.opened_name file.name
 
-# 1650 "README.adoc"
+# 1651 "README.adoc"
 
 
-# 1567 "README.adoc"
+# 1568 "README.adoc"
 let kafka_err_string =
   let open Kafka in
   function
@@ -164,5 +164,5 @@ let kafka_err_string =
   | CONF_UNKNOWN -> "CONF_UNKNOWN"
   | CONF_INVALID -> "CONF_INVALID"
 
-# 1651 "README.adoc"
+# 1652 "README.adoc"
 

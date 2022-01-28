@@ -1,5 +1,5 @@
 
-# 1628 "README.adoc"
+# 1629 "README.adoc"
 
 # 203 "README.adoc"
 open Batteries
@@ -12,17 +12,17 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1628 "README.adoc"
+# 1629 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
 
 
-# 1334 "README.adoc"
+# 1335 "README.adoc"
 let gen_serialize_random_value : (DH.Pointer.t -> DH.Pointer.t) ref =
   ref (fun _buffer -> assert false)
 
-# 1632 "README.adoc"
+# 1633 "README.adoc"
 
 
 # 680 "README.adoc"
@@ -38,13 +38,13 @@ let main_loop serialize_random_value is_full output rate_limit count buffer =
       loop buffer count in
   loop buffer count
 
-# 1633 "README.adoc"
+# 1634 "README.adoc"
 
 
 # 506 "README.adoc"
 let default_kafka_compression_codec = "inherit"
 
-# 1634 "README.adoc"
+# 1635 "README.adoc"
 
 
 # 543 "README.adoc"
@@ -67,7 +67,7 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
   if kafka_compression_level < -1 || kafka_compression_level > 12 then
     raise (Failure "--kafka-compression-level must be between -1 and 12")
 
-# 1635 "README.adoc"
+# 1636 "README.adoc"
 
 
 # 1075 "README.adoc"
@@ -116,7 +116,8 @@ let output_to_kafka quiet brokers topic partitions timeout wait_confirm
   let next_partition = ref 0 in
   fun buffer ->
     let bytes = (fst buffer).DH.Pointer.impl.to_bytes () in
-    let str = Bytes.unsafe_to_string bytes in (* producer will not keep a ref on this *)
+    let len = snd buffer in
+    let str = Bytes.sub_string bytes 0 len in (* producer will not keep a ref on this *)
     let rec send () =
       try
         Kafka.produce producer ~msg_id:!msg_id partitions.(!next_partition) str ;
@@ -132,7 +133,7 @@ let output_to_kafka quiet brokers topic partitions timeout wait_confirm
     send ()
     (* TODO: on exit, release all producers *)
 
-# 1636 "README.adoc"
+# 1637 "README.adoc"
 
 
 # 622 "README.adoc"
@@ -144,10 +145,10 @@ let start
 # 966 "README.adoc"
 separator null quote clickhouse_syntax with_newlines
 
-# 1311 "README.adoc"
+# 1312 "README.adoc"
 prefix
 
-# 1381 "README.adoc"
+# 1382 "README.adoc"
 extra_search_paths
 
 # 626 "README.adoc"
@@ -287,12 +288,12 @@ let output =
     output_to_file "/dev/stdout" max_count max_size
   in
 
-# 1153 "README.adoc"
+# 1154 "README.adoc"
 let output buffer =
   output buffer ;
   DH.Pointer.reset buffer in
 
-# 1173 "README.adoc"
+# 1174 "README.adoc"
   let rate_limit =
     if rate_limit <= 0. then
       ignore
@@ -316,7 +317,7 @@ let output buffer =
           )
         ) in
 
-# 1205 "README.adoc"
+# 1206 "README.adoc"
   let display_rates =
     let avg_tot = Avg.make ()
     and avg_5m = Avg.make ~rotate_every:(mins 5) ()
@@ -340,7 +341,7 @@ let output buffer =
     display_rates () ;
     rate_limit () in
 
-# 1345 "README.adoc"
+# 1346 "README.adoc"
   let compunit =
     DU.add_verbatim_definition compunit ~name:"registration"
                                ~dependencies:["serialize_random_value"]
@@ -351,11 +352,11 @@ let output buffer =
            Datasino_main.gen_serialize_random_value := serialize_random_value\n"
         (DessserBackEndOCaml.let_of ~recurs ~rec_seq)) in
 
-# 1394 "README.adoc"
+# 1395 "README.adoc"
   DessserBackEndOCaml.compile_and_load ~extra_search_paths compunit ;
   let serialize_random_value = !gen_serialize_random_value in
 
-# 1411 "README.adoc"
+# 1412 "README.adoc"
   let serialize_random_value =
     (* Store the last serialized value: *)
     let last_value = Bytes.create max_msg_size
@@ -384,9 +385,9 @@ let output buffer =
         buffer
       ) in
 
-# 1448 "README.adoc"
+# 1449 "README.adoc"
   let buffer = DH.pointer_of_buffer max_msg_size in
   main_loop serialize_random_value is_full output rate_limit count buffer
 
-# 1637 "README.adoc"
+# 1638 "README.adoc"
 
