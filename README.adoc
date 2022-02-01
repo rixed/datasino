@@ -108,6 +108,9 @@ The special keyword +this+ corresponds to the current type and can be used to bu
        --stutter=VAL (absent=0. or STUTTER env)
            Reuse each generated value that many time.
 
+       --seed=VAL, --random-seed=VAL (absent RANDOM_SEED env)
+           Initial value to initialize the random number generator with.
+
        --version
            Show version information.
 ----
@@ -572,7 +575,9 @@ let check_command_line output_file discard kafka_brokers kafka_topic kafka_parti
     raise (Failure "--kafka-compression-level must be between -1 and 12")
 ----
 
-=== Options to control verbosity
+=== Miscellaneous options
+
+==== Verbosity
 
 Datasino will output regularly its actual output rate on stdout unless
 instructed to be quiet (recommanded if one intend to output data on stdout):
@@ -585,6 +590,22 @@ let quiet =
   let doc = "Do not print actual output rate on stdout." in
   let i = Arg.info ~doc ~env [ "q" ; "quiet" ] in
   Arg.(value (flag i))
+----
+
+==== Random generator seed
+
+In sake of reproducibility, any random data generator must print (unless
++--quiet+) the seed used to initialize the random number generator and must
+permit to set a specific one.
+
+.command line arguments
+[source,ml]
+----
+let random_seed =
+  let env = Term.env_info "RANDOM_SEED" in
+  let doc = "Initial value to initialize the random number generator with." in
+  let i = Arg.info ~doc ~env [ "seed" ; "random-seed" ] in
+  Arg.(value (opt (some int) None i))
 ----
 
 == Main function
@@ -601,6 +622,7 @@ let () =
     Term.(
       (const start
         $ quiet
+        $ random_seed
         $ schema
         $ map
         $ rate_limit
@@ -632,11 +654,16 @@ the logs), the first thing this +start+ function should do is to call the
 [source,ml]
 ----
 let start
-      quiet schema map rate_limit stutter count encoding output_file discard
-      kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
-      kafka_compression_codec kafka_compression_level
-      max_size max_count (* ...extra command line parameters... *) =
+      quiet random_seed schema map rate_limit stutter count encoding
+      output_file discard kafka_brokers kafka_topic kafka_partitions
+      kafka_timeout kafka_wait_confirm kafka_compression_codec
+      kafka_compression_level max_size max_count
+      (* ...extra command line parameters... *) =
   if not quiet then Printf.printf "Datasino v%s\n%!" version ;
+  let seed = random_seed |? Unix.(int_of_float (time ()) + getpid ()) in
+  Random.init seed ;
+  if not quiet && random_seed = None then
+    Printf.printf "Random seed: %d\n%!" seed ;
   check_command_line
     output_file discard
     kafka_brokers kafka_topic kafka_partitions kafka_timeout kafka_wait_confirm
