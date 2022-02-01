@@ -26,10 +26,19 @@ vehmj,84,2,zvqya,jefqu,F
 ddrbq,41,3,fvohq,sxfqq,rvdth,\N
 
 % docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{name:string; sex:[male|female]; parent:this?}' --encoding json
-{"name":"kbizh","sex":"male","parent":null}
-{"name":"sbrxo","sex":"male","parent":{"name":"gjrrk","sex":"female","parent":{"name":"bamzi","sex":"female","parent":{"name":"nonng","sex":"female","parent":null}}}}
-{"name":"rumes","sex":"male","parent":{"name":"rteau","sex":"female","parent":null}}
-{"name":"mghcm","sex":"female","parent":{"name":"hbmgc","sex":"female","parent":{"name":"nkjlo","sex":"female","parent":{"name":"hgzoq","sex":"female","parent":{"name":"blnst","sex":"male","parent":{"name":"wjfxf","sex":"female","parent":{"name":"wnklm","sex":"female","parent":null}}}}}}}
+{"name":"rkpdggbam","sex":"male","parent":null}
+{"name":"gcyz","sex":"female","parent":{"name":"ofxpyhgzo","sex":"male","parent":null}}
+{"name":"l","sex":"male","parent":{"name":"twjfxfdbpow","sex":"male","parent":{"name":"nufds","sex":"male","parent":{"name":"mjgjije","sex":"male","parent":null}}}}
+{"name":"vqy","sex":"female","parent":{"name":"drbqpkmrvdthals","sex":"female","parent":{"name":"fvohqn","sex":"female","parent":null}}}
+
+% docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{name:string; length:u8}' --encoding json \
+    --map '(fun ("this")
+             (copy-rec (param 0)
+               (string "length") (string-length (get-field "name" (param 0)))))'
+{"name":"izhsocrsbrxod","length":13}
+{"name":"gjrrkpdggbamzi","length":14}
+{"name":"tnonn","length":5}
+{"name":"cgrumesmcuprtea","length":15}
 ```
 ----
 
@@ -334,6 +343,9 @@ let expr_t =
 
 Of course when this +map+ function is unspecified no such transformation of
 values will take place (equivalent to plugin the identity function).
+
+See the last example given in the overview of this document to get a first idea
+of libdessser's intermediary language syntax.
 
 === Rate limit
 
