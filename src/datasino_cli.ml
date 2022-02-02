@@ -1,7 +1,7 @@
 
-# 1679 "README.adoc"
+# 1686 "README.adoc"
 
-# 212 "README.adoc"
+# 219 "README.adoc"
 open Batteries
 open Cmdliner
 
@@ -12,14 +12,14 @@ module DM = DessserMasks
 module DT = DessserTypes
 module DU = DessserCompilationUnit
 
-# 1679 "README.adoc"
+# 1686 "README.adoc"
 
 open Datasino_config
 open Datasino_tools
 open Datasino_main
 
 
-# 271 "README.adoc"
+# 278 "README.adoc"
 (* [string_or_file_content s] returns either [s] or, if [s] starts with
   '@', the content of that file name, à la curl: *)
 let string_or_file_content s =
@@ -41,7 +41,7 @@ let mn_t =
   in
   Arg.conv ~docv:"TYPE" (parse, print)
 
-# 330 "README.adoc"
+# 337 "README.adoc"
 let expr_t =
   let parse s =
     let s = string_or_file_content s in
@@ -55,7 +55,7 @@ let expr_t =
   in
   Arg.conv ~docv:"EXPRESSION" (parse, print)
 
-# 1012 "README.adoc"
+# 1019 "README.adoc"
 let better_char =
   let parse = function
     | "\\t" ->
@@ -70,17 +70,17 @@ let better_char =
   in
   Arg.conv ~docv:"CHAR" (parse, print)
 
-# 1684 "README.adoc"
+# 1691 "README.adoc"
 
 
-# 258 "README.adoc"
+# 265 "README.adoc"
 let schema =
   let env = Term.env_info "SCHEMA" in
   let doc = "The type of the data to be generated (inline or @file)." in
   let i = Arg.info ~doc ~env ~docv:"TYPE" [ "s" ; "schema" ] in
   Arg.(required (opt (some mn_t) None i))
 
-# 316 "README.adoc"
+# 323 "README.adoc"
 let map =
   let env = Term.env_info "MAP" in
   let doc = "Optional function to convert/modify input values of the schema \
@@ -88,28 +88,28 @@ let map =
   let i = Arg.info ~doc ~env [ "m" ; "map" ] in
   Arg.(value (opt (some expr_t) None i))
 
-# 361 "README.adoc"
+# 368 "README.adoc"
 let rate_limit =
   let env = Term.env_info "RATE_LIMIT" in
   let doc = "Maximum number of generated values per seconds." in
   let i = Arg.info ~doc ~env [ "r" ; "rate-limit" ] in
   Arg.(value (opt float 0. i))
 
-# 381 "README.adoc"
+# 388 "README.adoc"
 let stutter =
   let env = Term.env_info "STUTTER" in
   let doc = "Reuse each generated value that many time." in
   let i = Arg.info ~doc ~env [ "stutter" ] in
   Arg.(value (opt float 0. i))
 
-# 398 "README.adoc"
+# 405 "README.adoc"
 let count =
   let env = Term.env_info "COUNT" in
   let doc = "If >= 0, exit after than many values has been written." in
   let i = Arg.info ~doc ~env [ "c" ; "count" ] in
   Arg.(value (opt int ~-1 i))
 
-# 413 "README.adoc"
+# 420 "README.adoc"
 let encoding =
   let encodings =
     [ "null", Null ; (* <1> *)
@@ -124,7 +124,7 @@ let encoding =
   let i = Arg.info ~doc ~docv ~env [ "e" ; "encoding" ] in
   Arg.(value (opt (enum encodings) SExpr i))
 
-# 459 "README.adoc"
+# 466 "README.adoc"
 let output_file =
   let doc = "File name where to append the generated values." in
   let i = Arg.info ~doc [ "o" ; "output-file" ] in
@@ -178,7 +178,7 @@ let kafka_compression_level =
   let i = Arg.info ~doc ~env [ "kafka-compression-level" ] in
   Arg.(value (opt int ~-1 i))
 
-# 528 "README.adoc"
+# 535 "README.adoc"
 let max_size =
   let env = Term.env_info "MAX_SIZE" in
   let doc = "Rotate the current output file/kafka message after that size \
@@ -193,21 +193,21 @@ let max_count =
   let i = Arg.info ~doc ~env [ "max-count" ] in
   Arg.(value (opt int 0 (* <1> *) i))
 
-# 585 "README.adoc"
+# 592 "README.adoc"
 let quiet =
   let env = Term.env_info "QUIET" in
   let doc = "Do not print actual output rate on stdout." in
   let i = Arg.info ~doc ~env [ "q" ; "quiet" ] in
   Arg.(value (flag i))
 
-# 601 "README.adoc"
+# 608 "README.adoc"
 let random_seed =
   let env = Term.env_info "RANDOM_SEED" in
   let doc = "Initial value to initialize the random number generator with." in
   let i = Arg.info ~doc ~env [ "seed" ; "random-seed" ] in
   Arg.(value (opt (some int) None i))
 
-# 958 "README.adoc"
+# 965 "README.adoc"
 let separator =
   let env = Term.env_info "CSV_SEPARATOR" in
   let doc = "Character to use as a separator." in
@@ -238,21 +238,21 @@ let with_newlines =
   let i = Arg.info ~doc ~env [ "with-newlines" ] in
   Arg.(value (flag i))
 
-# 1332 "README.adoc"
+# 1339 "README.adoc"
 let prefix =
   let env = Term.env_info "PREFIX" in
   let doc = "Any string to prefix the stdout logs with." in
   let i = Arg.info ~doc ~env [ "prefix" ] in
   Arg.(value (opt string "" i))
 
-# 1402 "README.adoc"
+# 1409 "README.adoc"
 let extra_search_paths =
   let env = Term.env_info "EXTRA_SEARCH_PATHS" in
   let doc = "Where to find datasino libraries." in
   let i = Arg.info ~doc ~env [ "I" ; "extra-search-paths" ] in
   Arg.(value (opt_all string [] i))
 
-# 1427 "README.adoc"
+# 1434 "README.adoc"
 let keep_temp_files =
   let env = Term.env_info "KEEP_TEMP_FILES" in
   let doc = "Whether intermediary generated files should be kept around \
@@ -260,10 +260,10 @@ let keep_temp_files =
   let i = Arg.info ~doc ~env [ "keep-temp-files" ] in
   Arg.(value (flag i))
 
-# 1685 "README.adoc"
+# 1692 "README.adoc"
 
 
-# 616 "README.adoc"
+# 623 "README.adoc"
 let () =
   let start_cmd =
     let doc = "Datasino - random data generator" in
@@ -289,27 +289,27 @@ let () =
         $ max_size
         $ max_count
         
-# 992 "README.adoc"
+# 999 "README.adoc"
 $ separator
 $ null
 $ quote
 $ clickhouse_syntax
 $ with_newlines
 
-# 1342 "README.adoc"
+# 1349 "README.adoc"
 $ prefix
 
-# 1412 "README.adoc"
+# 1419 "README.adoc"
 $ extra_search_paths
 
-# 1438 "README.adoc"
+# 1445 "README.adoc"
 $ keep_temp_files
 
-# 640 "README.adoc"
+# 647 "README.adoc"
 ),
       info "datasino" ~version ~doc)
   in
   Term.eval start_cmd |> Term.exit
 
-# 1686 "README.adoc"
+# 1693 "README.adoc"
 

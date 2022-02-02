@@ -13,24 +13,28 @@ rixed@happyleptic.org
 
 [source,shell]
 ----
+# Generate 4 s-expressions for a schema containing a tagged union:
 % docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{thing:[foo|bar|baz string]?[]; thung:string[2]}' --encoding s-expression
 (0 () ("hcmdj" "ffhbm"))
 (2 (null null) ("xdqyt" "rwsnv"))
 (3 ((0 ) (1 ) null) ("fwfvw" "sxcdo"))
 (3 (null null null) ("tfirz" "svqhy"))
 
+# Generate 4 CSV lines for a schema involving a list (which length is written first) and a nullable boolean:
 % docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{name:string; age:u8; roles:string[]; present:bool?}' --encoding csv
 kbizh,44,1,rsbrx,\N
 egjrr,62,0,,T
 vehmj,84,2,zvqya,jefqu,F
 ddrbq,41,3,fvohq,sxfqq,rvdth,\N
 
+# Generate 4 JSON values for a recursive type:
 % docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{name:string; sex:[male|female]; parent:this?}' --encoding json
 {"name":"rkpdggbam","sex":"male","parent":null}
 {"name":"gcyz","sex":"female","parent":{"name":"ofxpyhgzo","sex":"male","parent":null}}
 {"name":"l","sex":"male","parent":{"name":"twjfxfdbpow","sex":"male","parent":{"name":"nufds","sex":"male","parent":{"name":"mjgjije","sex":"male","parent":null}}}}
 {"name":"vqy","sex":"female","parent":{"name":"drbqpkmrvdthals","sex":"female","parent":{"name":"fvohqn","sex":"female","parent":null}}}
 
+# Demonstrate how to use a map function to transform the value, here to set the length field to that of the name:
 % docker run rixed/datasino --quiet --with-newlines --count 4 --schema '{name:string; length:u8}' --encoding json \
     --map '(fun ("this")
              (copy-rec (param 0)
