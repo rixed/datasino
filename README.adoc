@@ -947,13 +947,13 @@ let null_config () = None
 and ringbuf_config () = None
 and rowbinary_config () = None
 and sexpr_config () =
-  Some {DessserSExpr.default_config with
+  Some {DessserConfigs.SExpr.default with
           newline = if with_newlines then Some '\n' else None }
 and csv_config () =
-  Some { DessserCsv.default_config with
+  Some { DessserConfigs.Csv.default with
            separator ; null ; quote ; clickhouse_syntax }
 and json_config () =
-  Some { DessserJson.default_config with
+  Some { DessserConfigs.Json.default with
            newline = if with_newlines then Some '\n' else None } in
 ----
 
